@@ -51,7 +51,7 @@ If you only want to build a neural network, start here:
 
 ```python
 import torch
-from modular_rl.networks import make_mlp, make_cnn_mlp
+from modular_rl.networks import make_mlp, make_cnn_mlp, make_rnn, make_transformer
 
 # 1) n-dimensional vector -> m-dimensional output
 n = 10
@@ -75,6 +75,17 @@ cnn_mlp = make_cnn_mlp(
 images = torch.randn(32, channels, height, width)
 out = cnn_mlp(images)
 print(out.shape)  # torch.Size([32, 5])
+
+# 3) sequence model: (batch, input_dim) or (batch, sequence, input_dim)
+rnn = make_rnn(input_dim=10, output_dim=3)
+single_step_out = rnn(torch.randn(32, 10))
+sequence_out = rnn(torch.randn(32, 6, 10))
+print(single_step_out.shape)  # torch.Size([32, 3])
+print(sequence_out.shape)     # torch.Size([32, 6, 3])
+
+transformer = make_transformer(input_dim=10, output_dim=3)
+sequence_out = transformer(torch.randn(32, 6, 10))
+print(sequence_out.shape)     # torch.Size([32, 6, 3])
 ```
 
 You can also build the same models from dictionaries:
@@ -89,7 +100,20 @@ model = build_model({
     "conv_channels": [32, 64],
     "mlp_hidden_dims": [128],
 })
+
+sequence_model = build_model({
+    "type": "transformer",
+    "input_dim": 10,
+    "output_dim": 3,
+    "hidden_dims": [64],
+    "embed_dim": 128,
+    "num_heads": 4,
+    "num_layers": 2,
+})
 ```
+
+The beginner sequence wrappers return only the output tensor. If you need hidden
+states from an RNN, use the lower-level `RNN` backbone directly.
 
 For PyTorch-style layer-by-layer construction, use `type="sequential"`.
 The result is still a normal `torch.nn.Module`, so `.parameters()`, `.to(device)`,

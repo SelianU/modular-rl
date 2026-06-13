@@ -2,7 +2,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from modular_rl.networks import build_model, make_cnn_mlp, make_mlp
+from modular_rl.networks import build_model, make_cnn_mlp, make_mlp, make_rnn, make_transformer
 
 
 def test_make_mlp_maps_input_dim_to_output_dim():
@@ -113,3 +113,62 @@ def test_build_model_rejects_unknown_sequential_layer_with_available_options():
             "input_shape": (5,),
             "layers": [{"type": "mystery"}],
         })
+
+
+def test_make_rnn_maps_single_step_and_sequence_inputs_to_output_dim():
+    model = make_rnn(input_dim=5, output_dim=2, hidden_dims=[8], rnn_hidden_dim=6)
+
+    single_step_output = model(torch.randn(4, 5))
+    sequence_output = model(torch.randn(4, 3, 5))
+
+    assert single_step_output.shape == (4, 2)
+    assert sequence_output.shape == (4, 3, 2)
+
+
+def test_make_transformer_maps_single_step_and_sequence_inputs_to_output_dim():
+    model = make_transformer(
+        input_dim=5,
+        output_dim=2,
+        hidden_dims=[8],
+        embed_dim=12,
+        num_heads=3,
+        num_layers=1,
+        max_seq_len=5,
+    )
+
+    single_step_output = model(torch.randn(4, 5))
+    sequence_output = model(torch.randn(4, 3, 5))
+
+    assert single_step_output.shape == (4, 2)
+    assert sequence_output.shape == (4, 3, 2)
+
+
+def test_build_model_creates_rnn_from_dict():
+    model = build_model({
+        "type": "rnn",
+        "input_dim": 5,
+        "output_dim": 2,
+        "hidden_dims": [8],
+        "rnn_hidden_dim": 6,
+    })
+
+    y = model(torch.randn(4, 3, 5))
+
+    assert y.shape == (4, 3, 2)
+
+
+def test_build_model_creates_transformer_from_dict():
+    model = build_model({
+        "type": "transformer",
+        "input_dim": 5,
+        "output_dim": 2,
+        "hidden_dims": [8],
+        "embed_dim": 12,
+        "num_heads": 3,
+        "num_layers": 1,
+        "max_seq_len": 5,
+    })
+
+    y = model(torch.randn(4, 3, 5))
+
+    assert y.shape == (4, 3, 2)
