@@ -22,11 +22,11 @@ class DemonstrationBuffer:
 
     Usage
     -----
-    buf = DemonstrationBuffer()
-    buf.add_trajectory(states, actions, rank=0)   # worst
-    buf.add_trajectory(states, actions, rank=5)   # best
+    demonstration_buffer = DemonstrationBuffer()
+    demonstration_buffer.add_trajectory(states, actions, rank=0)   # worst
+    demonstration_buffer.add_trajectory(states, actions, rank=5)   # best
 
-    pairs = buf.sample_preference_pairs(32)
+    pairs = demonstration_buffer.sample_preference_pairs(32)
     # → list of (better_traj, worse_traj) with better.rank > worse.rank
     """
 
@@ -54,8 +54,8 @@ class DemonstrationBuffer:
         Sample (better, worse) pairs with strictly different ranks.
         Returns up to n_pairs pairs (may return fewer if data is insufficient).
         """
-        trajs = self._trajectories
-        if len(trajs) < 2:
+        trajectories = self._trajectories
+        if len(trajectories) < 2:
             raise ValueError("Need at least 2 trajectories to form preference pairs.")
 
         pairs: List[Tuple[Trajectory, Trajectory]] = []
@@ -64,10 +64,14 @@ class DemonstrationBuffer:
 
         while len(pairs) < n_pairs and attempts < max_attempts:
             attempts += 1
-            i, j = random.sample(range(len(trajs)), 2)
-            if trajs[i].rank == trajs[j].rank:
+            first_index, second_index = random.sample(range(len(trajectories)), 2)
+            if trajectories[first_index].rank == trajectories[second_index].rank:
                 continue
-            better, worse = (trajs[i], trajs[j]) if trajs[i].rank > trajs[j].rank else (trajs[j], trajs[i])
+            better, worse = (
+                (trajectories[first_index], trajectories[second_index])
+                if trajectories[first_index].rank > trajectories[second_index].rank
+                else (trajectories[second_index], trajectories[first_index])
+            )
             pairs.append((better, worse))
 
         return pairs

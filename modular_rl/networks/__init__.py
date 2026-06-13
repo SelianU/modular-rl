@@ -5,3 +5,4 @@ from .heads import (
     CategoricalPolicyHead,
     DoubleQCriticHead, ValueHead,
 )
+from .simple import build_model, make_cnn_mlp, make_mlp

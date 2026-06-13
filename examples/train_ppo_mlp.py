@@ -25,13 +25,16 @@ def train():
     )
     print(f"Using device: {config.device}")
 
-    env = GymEnvWrapper(config.env_name)
+    environment = GymEnvWrapper(config.env_name)
 
-    actor_bb = MLP(input_dim=env.state_dim, hidden_dims=[64, 64])
-    actor = PPOActor(actor_bb, CategoricalPolicyHead(actor_bb.output_dim, env.action_dim))
+    actor_backbone = MLP(input_dim=environment.state_dim, hidden_dims=[64, 64])
+    actor = PPOActor(
+        actor_backbone,
+        CategoricalPolicyHead(actor_backbone.output_dim, environment.action_dim),
+    )
 
-    critic_bb = MLP(input_dim=env.state_dim, hidden_dims=[64, 64])
-    critic = PPOCritic(critic_bb, ValueHead(critic_bb.output_dim))
+    critic_backbone = MLP(input_dim=environment.state_dim, hidden_dims=[64, 64])
+    critic = PPOCritic(critic_backbone, ValueHead(critic_backbone.output_dim))
 
     agent = PPOAgent(
         actor=actor,
@@ -47,7 +50,7 @@ def train():
         MatplotlibLogger(save_path="ppo_mlp_results.png"),
     ])
 
-    Trainer(agent, env, config, logger, save_path="checkpoints/ppo_mlp_cartpole.pt").train()
+    Trainer(agent, environment, config, logger, save_path="checkpoints/ppo_mlp_cartpole.pt").train()
 
 
 if __name__ == "__main__":

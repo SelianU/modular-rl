@@ -259,10 +259,10 @@ class SequenceReplayBuffer:
 
             pad = seq_len - slice_len
             if pad > 0:
-                s_dim = sub[0][0].shape
+                state_shape = sub[0][0].shape
                 a_shape = np.array(sub[0][1]).shape
-                states.extend([np.zeros(s_dim, dtype=np.float32)] * pad)
-                next_states.extend([np.zeros(s_dim, dtype=np.float32)] * pad)
+                states.extend([np.zeros(state_shape, dtype=np.float32)] * pad)
+                next_states.extend([np.zeros(state_shape, dtype=np.float32)] * pad)
                 if isinstance(sub[0][1], (int, np.integer)):
                     actions.extend([0] * pad)
                 else:

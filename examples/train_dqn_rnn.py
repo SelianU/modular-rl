@@ -15,10 +15,10 @@ def mask_velocity(obs: np.ndarray) -> np.ndarray:
     return masked
 
 
-def build_rnn_q_net(state_dim: int, action_dim: int) -> QNetwork:
-    base = MLP(input_dim=state_dim, hidden_dims=[64])
-    rnn = RNN(base_backbone=base, rnn_type="LSTM", rnn_hidden_dim=64)
-    return QNetwork(rnn, QHead(rnn.output_dim, action_dim))
+def build_rnn_q_network(state_dim: int, action_dim: int) -> QNetwork:
+    base_backbone = MLP(input_dim=state_dim, hidden_dims=[64])
+    recurrent_backbone = RNN(base_backbone=base_backbone, rnn_type="LSTM", rnn_hidden_dim=64)
+    return QNetwork(recurrent_backbone, QHead(recurrent_backbone.output_dim, action_dim))
 
 
 def train():
@@ -39,19 +39,19 @@ def train():
     )
     print(f"Using device: {config.device}")
 
-    env = GymEnvWrapper(config.env_name, obs_transform=mask_velocity)
+    environment = GymEnvWrapper(config.env_name, obs_transform=mask_velocity)
 
-    q_net = build_rnn_q_net(env.state_dim, env.action_dim)
-    target_q_net = build_rnn_q_net(env.state_dim, env.action_dim)
+    q_network = build_rnn_q_network(environment.state_dim, environment.action_dim)
+    target_q_network = build_rnn_q_network(environment.state_dim, environment.action_dim)
 
     agent = DQNAgent(
-        q_network=q_net,
-        target_network=target_q_net,
-        optimizer=torch.optim.Adam(q_net.parameters(), lr=config.learning_rate),
+        q_network=q_network,
+        target_network=target_q_network,
+        optimizer=torch.optim.Adam(q_network.parameters(), lr=config.learning_rate),
         criterion=nn.MSELoss(reduction="none"),
         replay_buffer=SequenceReplayBuffer(config.buffer_size, config.device),
         config=config,
-        action_dim=env.action_dim,
+        action_dim=environment.action_dim,
         is_recurrent=True,
     )
 
@@ -60,7 +60,7 @@ def train():
         MatplotlibLogger(save_path="dqn_rnn_results.png"),
     ])
 
-    Trainer(agent, env, config, logger, save_path="checkpoints/dqn_rnn_cartpole.pt").train()
+    Trainer(agent, environment, config, logger, save_path="checkpoints/dqn_rnn_cartpole.pt").train()
 
 
 if __name__ == "__main__":

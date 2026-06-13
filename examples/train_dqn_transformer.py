@@ -15,10 +15,10 @@ from modular_rl.algorithms import DQNConfig, SequenceReplayBuffer, DQNAgent, QNe
 from modular_rl.training import GymEnvWrapper, Trainer, ConsoleLogger, MatplotlibLogger, CompositeLogger
 
 
-def build_transformer_q_net(state_dim: int, action_dim: int) -> QNetwork:
-    base = MLP(input_dim=state_dim, hidden_dims=[64])
+def build_transformer_q_network(state_dim: int, action_dim: int) -> QNetwork:
+    base_backbone = MLP(input_dim=state_dim, hidden_dims=[64])
     transformer = Transformer(
-        base_backbone=base,
+        base_backbone=base_backbone,
         num_heads=4,
         num_layers=2,
         embed_dim=128,
@@ -47,19 +47,19 @@ def train():
     )
     print(f"Using device: {config.device}")
 
-    env = GymEnvWrapper(config.env_name)
+    environment = GymEnvWrapper(config.env_name)
 
-    q_net = build_transformer_q_net(env.state_dim, env.action_dim)
-    target_q_net = build_transformer_q_net(env.state_dim, env.action_dim)
+    q_network = build_transformer_q_network(environment.state_dim, environment.action_dim)
+    target_q_network = build_transformer_q_network(environment.state_dim, environment.action_dim)
 
     agent = DQNAgent(
-        q_network=q_net,
-        target_network=target_q_net,
-        optimizer=torch.optim.Adam(q_net.parameters(), lr=config.learning_rate),
+        q_network=q_network,
+        target_network=target_q_network,
+        optimizer=torch.optim.Adam(q_network.parameters(), lr=config.learning_rate),
         criterion=nn.MSELoss(reduction="none"),
         replay_buffer=SequenceReplayBuffer(config.buffer_size, config.device),
         config=config,
-        action_dim=env.action_dim,
+        action_dim=environment.action_dim,
         is_recurrent=True,      # Enables sequence sampling and BPTT
     )
 
@@ -69,7 +69,7 @@ def train():
     ])
 
     Trainer(
-        agent, env, config, logger,
+        agent, environment, config, logger,
         save_path="checkpoints/dqn_transformer_cartpole.pt",
     ).train()
 

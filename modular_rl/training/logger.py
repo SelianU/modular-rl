@@ -32,10 +32,10 @@ class ConsoleLogger(BaseLogger):
             parts = [f"{self.prefix}Ep {episode:4d}", f"Step {step:6d}"]
             parts.append(f"Reward {reward:8.2f}")
             parts.append(f"Mean(100) {np.mean(self._recent_rewards):8.2f}")
-            for k, v in metrics.items():
-                if k == "reward":
+            for metric_name, metric_value in metrics.items():
+                if metric_name == "reward":
                     continue
-                parts.append(f"{k} {v:.4f}")
+                parts.append(f"{metric_name} {metric_value:.4f}")
             print(" | ".join(parts))
 
 
@@ -48,8 +48,8 @@ class MatplotlibLogger(BaseLogger):
         self._history: Dict[str, List[float]] = {}
 
     def log_episode(self, episode: int, step: int, metrics: Dict[str, float]) -> None:
-        for k, v in metrics.items():
-            self._history.setdefault(k, []).append(float(v))
+        for metric_name, metric_value in metrics.items():
+            self._history.setdefault(metric_name, []).append(float(metric_value))
 
     def close(self) -> None:
         import matplotlib.pyplot as plt
@@ -96,9 +96,9 @@ class CompositeLogger(BaseLogger):
         self._loggers = loggers
 
     def log_episode(self, episode: int, step: int, metrics: Dict[str, float]) -> None:
-        for lg in self._loggers:
-            lg.log_episode(episode, step, metrics)
+        for logger in self._loggers:
+            logger.log_episode(episode, step, metrics)
 
     def close(self) -> None:
-        for lg in self._loggers:
-            lg.close()
+        for logger in self._loggers:
+            logger.close()

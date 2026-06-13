@@ -50,7 +50,7 @@ class GridWorldEnv:
         pass
 
 
-def build_cnn_q_net(state_shape: Tuple, action_dim: int) -> QNetwork:
+def build_cnn_q_network(state_shape: Tuple, action_dim: int) -> QNetwork:
     backbone = CNN(
         input_shape=state_shape, feature_dim=32,
         channels=[16, 16], kernels=[3, 3], strides=[1, 1], paddings=[1, 1],
@@ -59,8 +59,8 @@ def build_cnn_q_net(state_shape: Tuple, action_dim: int) -> QNetwork:
 
 
 def train():
-    STATE_SHAPE = (1, 16, 16)
-    ACTION_DIM = 4
+    state_shape = (1, 16, 16)
+    action_dim = 4
 
     config = DQNConfig(
         env_name="GridWorld-16x16",
@@ -79,19 +79,19 @@ def train():
     )
     print(f"Using device: {config.device}")
 
-    env = CustomEnvWrapper(GridWorldEnv(size=16), state_dim=STATE_SHAPE, action_dim=ACTION_DIM)
+    environment = CustomEnvWrapper(GridWorldEnv(size=16), state_dim=state_shape, action_dim=action_dim)
 
-    q_net = build_cnn_q_net(STATE_SHAPE, ACTION_DIM)
-    target_q_net = build_cnn_q_net(STATE_SHAPE, ACTION_DIM)
+    q_network = build_cnn_q_network(state_shape, action_dim)
+    target_q_network = build_cnn_q_network(state_shape, action_dim)
 
     agent = DQNAgent(
-        q_network=q_net,
-        target_network=target_q_net,
-        optimizer=torch.optim.Adam(q_net.parameters(), lr=config.learning_rate),
+        q_network=q_network,
+        target_network=target_q_network,
+        optimizer=torch.optim.Adam(q_network.parameters(), lr=config.learning_rate),
         criterion=nn.MSELoss(),
         replay_buffer=ReplayBuffer(config.buffer_size, config.device),
         config=config,
-        action_dim=ACTION_DIM,
+        action_dim=action_dim,
     )
 
     logger = CompositeLogger([
@@ -99,7 +99,7 @@ def train():
         MatplotlibLogger(save_path="dqn_cnn_results.png"),
     ])
 
-    Trainer(agent, env, config, logger, save_path="checkpoints/dqn_cnn_gridworld.pt").train()
+    Trainer(agent, environment, config, logger, save_path="checkpoints/dqn_cnn_gridworld.pt").train()
 
 
 if __name__ == "__main__":

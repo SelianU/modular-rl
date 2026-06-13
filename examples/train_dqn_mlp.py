@@ -24,22 +24,25 @@ def train():
     )
     print(f"Using device: {config.device}")
 
-    env = GymEnvWrapper(config.env_name)
+    environment = GymEnvWrapper(config.env_name)
 
-    backbone = MLP(input_dim=env.state_dim, hidden_dims=[128, 128])
-    q_net = QNetwork(backbone, QHead(backbone.output_dim, env.action_dim))
+    backbone = MLP(input_dim=environment.state_dim, hidden_dims=[128, 128])
+    q_network = QNetwork(backbone, QHead(backbone.output_dim, environment.action_dim))
 
-    target_backbone = MLP(input_dim=env.state_dim, hidden_dims=[128, 128])
-    target_q_net = QNetwork(target_backbone, QHead(target_backbone.output_dim, env.action_dim))
+    target_backbone = MLP(input_dim=environment.state_dim, hidden_dims=[128, 128])
+    target_q_network = QNetwork(
+        target_backbone,
+        QHead(target_backbone.output_dim, environment.action_dim),
+    )
 
     agent = DQNAgent(
-        q_network=q_net,
-        target_network=target_q_net,
-        optimizer=torch.optim.Adam(q_net.parameters(), lr=config.learning_rate),
+        q_network=q_network,
+        target_network=target_q_network,
+        optimizer=torch.optim.Adam(q_network.parameters(), lr=config.learning_rate),
         criterion=nn.SmoothL1Loss(),
         replay_buffer=ReplayBuffer(config.buffer_size, config.device),
         config=config,
-        action_dim=env.action_dim,
+        action_dim=environment.action_dim,
     )
 
     logger = CompositeLogger([
@@ -47,7 +50,7 @@ def train():
         MatplotlibLogger(save_path="dqn_mlp_results.png"),
     ])
 
-    Trainer(agent, env, config, logger, save_path="checkpoints/dqn_mlp_cartpole.pt").train()
+    Trainer(agent, environment, config, logger, save_path="checkpoints/dqn_mlp_cartpole.pt").train()
 
 
 if __name__ == "__main__":

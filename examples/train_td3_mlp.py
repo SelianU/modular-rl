@@ -7,13 +7,16 @@ from modular_rl.training import GymEnvWrapper, Trainer, ConsoleLogger, Matplotli
 
 
 def build_actor(state_dim, action_dim, hidden_dims, action_low, action_high):
-    bb = MLP(input_dim=state_dim, hidden_dims=hidden_dims)
-    return TD3Actor(bb, DeterministicPolicyHead(bb.output_dim, action_dim, action_low, action_high))
+    backbone = MLP(input_dim=state_dim, hidden_dims=hidden_dims)
+    return TD3Actor(
+        backbone,
+        DeterministicPolicyHead(backbone.output_dim, action_dim, action_low, action_high),
+    )
 
 
 def build_critic(state_dim, action_dim, hidden_dims):
-    bb = MLP(input_dim=state_dim, hidden_dims=hidden_dims)
-    return TD3Critic(bb, DoubleQCriticHead(bb.output_dim, action_dim, hidden_dims[-1]))
+    backbone = MLP(input_dim=state_dim, hidden_dims=hidden_dims)
+    return TD3Critic(backbone, DoubleQCriticHead(backbone.output_dim, action_dim, hidden_dims[-1]))
 
 
 def train():
@@ -35,17 +38,17 @@ def train():
     )
     print(f"Using device: {config.device}")
 
-    env = GymEnvWrapper(config.env_name)
-    s_dim = env.state_dim
-    a_dim = env.action_dim
-    a_low = env.action_low
-    a_high = env.action_high
-    hidden = [256, 256]
+    environment = GymEnvWrapper(config.env_name)
+    state_dim = environment.state_dim
+    action_dim = environment.action_dim
+    action_low = environment.action_low
+    action_high = environment.action_high
+    hidden_dims = [256, 256]
 
-    actor = build_actor(s_dim, a_dim, hidden, a_low, a_high)
-    actor_target = build_actor(s_dim, a_dim, hidden, a_low, a_high)
-    critic = build_critic(s_dim, a_dim, hidden)
-    critic_target = build_critic(s_dim, a_dim, hidden)
+    actor = build_actor(state_dim, action_dim, hidden_dims, action_low, action_high)
+    actor_target = build_actor(state_dim, action_dim, hidden_dims, action_low, action_high)
+    critic = build_critic(state_dim, action_dim, hidden_dims)
+    critic_target = build_critic(state_dim, action_dim, hidden_dims)
 
     agent = TD3Agent(
         actor=actor,
@@ -56,9 +59,9 @@ def train():
         critic_optimizer=torch.optim.Adam(critic.parameters(), lr=config.learning_rate),
         replay_buffer=ReplayBuffer(config.buffer_size, config.device),
         config=config,
-        action_dim=a_dim,
-        action_low=a_low,
-        action_high=a_high,
+        action_dim=action_dim,
+        action_low=action_low,
+        action_high=action_high,
     )
 
     logger = CompositeLogger([
@@ -66,7 +69,7 @@ def train():
         MatplotlibLogger(save_path="td3_mlp_results.png"),
     ])
 
-    Trainer(agent, env, config, logger, save_path="checkpoints/td3_mlp_pendulum.pt").train()
+    Trainer(agent, environment, config, logger, save_path="checkpoints/td3_mlp_pendulum.pt").train()
 
 
 if __name__ == "__main__":

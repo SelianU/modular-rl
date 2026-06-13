@@ -16,7 +16,8 @@ pip install modular-rl
 modular_rl/
 ├── networks/               # Neural network building blocks
 │   ├── encoders/           # MLP, CNN, RNN, Transformer
-│   └── heads.py            # QHead, DuelingQHead, GaussianPolicyHead, ...
+│   ├── heads.py            # QHead, DuelingQHead, GaussianPolicyHead, ...
+│   └── simple.py           # make_mlp, make_cnn_mlp, build_model
 │
 ├── algorithms/             # RL algorithms
 │   ├── agents/             # DQNAgent, SACAgent, PPOAgent, TD3Agent
@@ -26,16 +27,73 @@ modular_rl/
 │   └── models.py           # QNetwork, SACActor/Critic, PPOActor/Critic, TD3Actor
 │
 └── training/               # Training infrastructure
+    ├── builders.py         # build_trainer, ExperimentBuilder
     ├── factory.py          # quick_dqn, quick_sac, quick_ppo, quick_td3
     ├── trainer.py          # Trainer — unified training loop
     ├── registry.py         # Registry — string-keyed component factory
     ├── env_wrapper.py      # BaseEnv, GymEnvWrapper, CustomEnvWrapper
     └── wrappers.py         # RewardNormWrapper, LearnedRewardWrapper
+
+docs/
+├── naming-conventions.md   # File, function, class, and variable naming rules
+└── superpowers/            # Design and implementation notes
+
+tests/                      # Pytest coverage for builders and simple networks
 ```
 
 ---
 
 ## Quickstart
+
+### Beginner-Friendly Standalone Models
+
+If you only want to build a neural network, start here:
+
+```python
+import torch
+from modular_rl.networks import make_mlp, make_cnn_mlp
+
+# 1) n-dimensional vector -> m-dimensional output
+n = 10
+m = 3
+mlp = make_mlp(input_dim=n, output_dim=m)
+
+x = torch.randn(32, n)
+y = mlp(x)
+print(y.shape)  # torch.Size([32, 3])
+
+# 2) channels x height x width image -> two 3x3 conv layers -> MLP -> output_dim
+channels, height, width = 1, 28, 28
+output_dim = 5
+cnn_mlp = make_cnn_mlp(
+    input_shape=(channels, height, width),
+    output_dim=output_dim,
+    conv_channels=[32, 64],   # two convolution layers
+    mlp_hidden_dims=[128],
+)
+
+images = torch.randn(32, channels, height, width)
+out = cnn_mlp(images)
+print(out.shape)  # torch.Size([32, 5])
+```
+
+You can also build the same models from dictionaries:
+
+```python
+from modular_rl.networks import build_model
+
+model = build_model({
+    "type": "cnn_mlp",
+    "input_shape": (1, 28, 28),
+    "output_dim": 5,
+    "conv_channels": [32, 64],
+    "mlp_hidden_dims": [128],
+})
+```
+
+---
+
+### RL Training Shortcuts
 
 ```python
 from modular_rl.training import quick_dqn, quick_sac, quick_ppo, quick_td3
@@ -45,6 +103,55 @@ quick_sac("Pendulum-v1", total_timesteps=50000).train()
 quick_ppo("CartPole-v1").train()
 quick_td3("Pendulum-v1").train()
 ```
+
+### Config-Driven Experiments
+
+For larger experiment grids, build trainers from plain dictionaries instead of
+writing a new factory function for every combination:
+
+```python
+from modular_rl.training import build_trainer
+
+trainer = build_trainer({
+    "algorithm": "dqn",
+    "env": {"type": "gym", "name": "CartPole-v1"},
+    "model": {"backbone": {"type": "mlp", "hidden_dims": [128, 128]}},
+    "config": {"total_timesteps": 30000, "learning_starts": 1000},
+    "logger": {"type": "console"},
+})
+
+trainer.train()
+```
+
+The builder supports the built-in `dqn`, `sac`, `ppo`, and `td3` algorithms.
+The same registry used by the builder can be extended with custom backbones,
+heads, agents, configs, buffers, environment wrappers, loggers, and optimizers:
+
+```python
+from modular_rl.training import Registry
+
+Registry.register_backbone("my_encoder", MyEncoder)
+Registry.register_logger("wandb", WandBLogger)
+print(Registry.list_backbones())
+print(Registry.list_loggers())
+```
+
+---
+
+## Naming Conventions
+
+This project keeps public APIs stable and uses explicit names in examples and
+internal assembly code. See [docs/naming-conventions.md](docs/naming-conventions.md)
+for the full rules.
+
+Common patterns:
+
+- `make_*`: beginner-friendly neural network constructors.
+- `build_*`: configurable component builders.
+- `quick_*`: common training shortcuts.
+- `*Agent`, `*Config`, `*Buffer`, `*Wrapper`, `*Logger`, `*Head`: class role suffixes.
+- Prefer `q_network`, `target_q_network`, `state_dim`, `action_dim`, and `environment`
+  over short abbreviations.
 
 ---
 
@@ -90,12 +197,12 @@ from modular_rl.networks import QHead, DuelingQHead
 from modular_rl.algorithms import QNetwork
 
 # Drop-in encoder swap
-q_net = QNetwork(MLP(input_dim=4, hidden_dims=[128, 128]), QHead(128, 2))
-q_net = QNetwork(MLP(input_dim=4, hidden_dims=[128, 128]), DuelingQHead(128, 2))
+q_network = QNetwork(MLP(input_dim=4, hidden_dims=[128, 128]), QHead(128, 2))
+q_network = QNetwork(MLP(input_dim=4, hidden_dims=[128, 128]), DuelingQHead(128, 2))
 
 # Recurrent encoder
-base = MLP(input_dim=4, hidden_dims=[64])
-q_net = QNetwork(RNN(base_backbone=base, rnn_hidden_dim=64), QHead(64, 2))
+base_backbone = MLP(input_dim=4, hidden_dims=[64])
+q_network = QNetwork(RNN(base_backbone=base_backbone, rnn_hidden_dim=64), QHead(64, 2))
 ```
 
 ### Prioritized Experience Replay
@@ -130,7 +237,7 @@ config = DQNConfig(batch_size=512,
 ```python
 from modular_rl.training import Registry
 
-q_net = Registry.build_q_network(
+q_network = Registry.build_q_network(
     backbone_cfg={"type": "mlp", "input_dim": 4, "hidden_dims": [128, 128]},
     head_cfg={"action_dim": 2},
 )
@@ -146,10 +253,10 @@ print(Registry.list_backbones())  # ["mlp", "cnn", "rnn", "transformer", "my_net
 from modular_rl.training import GymEnvWrapper, CustomEnvWrapper, BaseEnv
 
 # Gymnasium env with optional obs transform
-env = GymEnvWrapper("CartPole-v1", obs_transform=lambda o: o * mask)
+environment = GymEnvWrapper("CartPole-v1", obs_transform=lambda obs: obs * mask)
 
 # Custom env (non-Gymnasium)
-env = CustomEnvWrapper(MyEnv(), state_dim=(1, 16, 16), action_dim=4)
+environment = CustomEnvWrapper(MyEnv(), state_dim=(1, 16, 16), action_dim=4)
 
 # Implement BaseEnv for any simulator
 class MyEnv(BaseEnv):
@@ -169,9 +276,9 @@ class MyEnv(BaseEnv):
 ```python
 from modular_rl.training import RewardNormWrapper, LearnedRewardWrapper
 
-env = GymEnvWrapper("Pendulum-v1")
-env = RewardNormWrapper(env, clip=10.0)           # online reward normalisation
-env = LearnedRewardWrapper(env, reward_model)     # replace reward with learned R(s)
+environment = GymEnvWrapper("Pendulum-v1")
+environment = RewardNormWrapper(environment, clip=10.0)        # online reward normalisation
+environment = LearnedRewardWrapper(environment, reward_model)  # replace reward with learned R(s)
 ```
 
 ### Unified Training Loop
@@ -187,7 +294,7 @@ logger = CompositeLogger([
     MatplotlibLogger(save_path="results.png"),
 ])
 
-trainer = Trainer(agent, env, config, logger, save_path="model.pt")
+trainer = Trainer(agent, environment, config, logger, save_path="model.pt")
 history = trainer.train()        # {"reward": [...], "loss": [...], "eval_reward": [...]}
 result  = trainer.evaluate(n_episodes=10)
 ```
@@ -215,18 +322,18 @@ from modular_rl.algorithms.reward import RewardModel, DemonstrationBuffer, Rewar
 from modular_rl.training import LearnedRewardWrapper, GymEnvWrapper
 
 # 1. Collect ranked demonstrations (higher rank = better)
-buf = DemonstrationBuffer()
-buf.add_trajectory(states, actions, rank=0)   # worst
-buf.add_trajectory(states, actions, rank=5)   # best
+demonstration_buffer = DemonstrationBuffer()
+demonstration_buffer.add_trajectory(states, actions, rank=0)   # worst
+demonstration_buffer.add_trajectory(states, actions, rank=5)   # best
 
 # 2. Train reward model (Bradley-Terry preference loss)
 backbone = MLP(input_dim=4, hidden_dims=[64, 64])
 reward_model = RewardModel(backbone, action_dim=0)   # R(s)
 trainer = RewardModelTrainer(reward_model, optimizer)
-trainer.train(buf, n_epochs=300)
+trainer.train(demonstration_buffer, n_epochs=300)
 
 # 3. Train any agent with learned reward — no true env reward needed
-env = LearnedRewardWrapper(GymEnvWrapper("CartPole-v1"), reward_model)
+environment = LearnedRewardWrapper(GymEnvWrapper("CartPole-v1"), reward_model)
 ```
 
 ---
@@ -238,12 +345,34 @@ env = LearnedRewardWrapper(GymEnvWrapper("CartPole-v1"), reward_model)
 git clone https://github.com/yourname/modular-rl
 cd modular-rl
 pip install -e .
+pip install -e ".[dev]"
 
 # From PyPI (when published)
 pip install modular-rl
 ```
 
 **Requirements:** `torch>=2.0.0`, `gymnasium[classic-control]>=0.28.1`, `numpy>=1.22.0`, `matplotlib>=3.5.0`
+
+---
+
+## Development
+
+Create a local virtual environment and install development dependencies:
+
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -e ".[dev]"
+```
+
+Run tests:
+
+```bash
+.venv/bin/python -m pytest -v
+```
+
+Generated artifacts such as `.venv/`, `.pytest_cache/`, `checkpoints/`, training
+plots, logs, and coverage files are ignored by `.gitignore`.
 
 ---
 

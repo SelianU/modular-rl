@@ -28,40 +28,43 @@ torch.manual_seed(SEED)
 np.random.seed(SEED)
 random.seed(SEED)
 
-ENV_NAME  = "CartPole-v1"
-DEVICE    = "cuda" if torch.cuda.is_available() else "cpu"
+ENV_NAME = "CartPole-v1"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-def make_dqn_agent(env, config, hidden):
-    bb  = MLP(env.state_dim, hidden)
-    q   = QNetwork(bb, QHead(bb.output_dim, env.action_dim))
-    tbb = MLP(env.state_dim, hidden)
-    tq  = QNetwork(tbb, QHead(tbb.output_dim, env.action_dim))
+def make_dqn_agent(environment, config, hidden_dims):
+    backbone = MLP(environment.state_dim, hidden_dims)
+    q_network = QNetwork(backbone, QHead(backbone.output_dim, environment.action_dim))
+    target_backbone = MLP(environment.state_dim, hidden_dims)
+    target_q_network = QNetwork(
+        target_backbone,
+        QHead(target_backbone.output_dim, environment.action_dim),
+    )
     return DQNAgent(
-        q_network=q, target_network=tq,
-        optimizer=torch.optim.Adam(q.parameters(), lr=config.learning_rate),
+        q_network=q_network, target_network=target_q_network,
+        optimizer=torch.optim.Adam(q_network.parameters(), lr=config.learning_rate),
         criterion=nn.SmoothL1Loss(),
         replay_buffer=ReplayBuffer(config.buffer_size, config.device),
-        config=config, action_dim=env.action_dim,
+        config=config, action_dim=environment.action_dim,
     )
 
 
-def true_eval(agent, n=30):
+def true_eval(agent, n_episodes=30):
     """진짜 CartPole 보상(에피소드 길이)으로 평가."""
-    env = gym.make(ENV_NAME)
+    environment = gym.make(ENV_NAME)
     rewards = []
-    for _ in range(n):
-        state, _ = env.reset()
-        ep_r, done = 0, False
+    for _ in range(n_episodes):
+        state, _ = environment.reset()
+        episode_reward, done = 0, False
         while not done:
             action = agent.select_action(state, evaluation=True)
-            state, r, terminated, truncated, _ = env.step(action)
-            ep_r += r
+            state, reward, terminated, truncated, _ = environment.step(action)
+            episode_reward += reward
             done = terminated or truncated
-        rewards.append(ep_r)
-    env.close()
+        rewards.append(episode_reward)
+    environment.close()
     return np.array(rewards)
 
 
@@ -102,27 +105,27 @@ class TrueEvalLogger(BaseLogger):
                 f"LearnedR {reward:7.2f}",
                 f"Mean(100) {np.mean(self._recent):7.2f}",
             ]
-            for k, v in metrics.items():
-                if k == "reward":
+            for metric_name, metric_value in metrics.items():
+                if metric_name == "reward":
                     continue
-                parts.append(f"{k} {v:.4f}")
+                parts.append(f"{metric_name} {metric_value:.4f}")
             print(" | ".join(parts))
 
         # 진짜 환경 평가
         if episode % self.eval_every == 0:
             agent = self._agent_ref[0]
-            rewards = true_eval(agent, n=30)
-            mean_r  = rewards.mean()
-            self.true_history.append((episode, step, mean_r))
+            rewards = true_eval(agent, n_episodes=30)
+            mean_reward = rewards.mean()
+            self.true_history.append((episode, step, mean_reward))
 
             surpass = ""
-            if mean_r > self.demonstrator_mean and self.surpassed_ep is None:
+            if mean_reward > self.demonstrator_mean and self.surpassed_ep is None:
                 self.surpassed_ep = episode
                 surpass = "  ★ 시연자 초과!"
 
             print(
                 f"  [True eval] Ep {episode:4d} | Step {step:6d} | "
-                f"True mean: {mean_r:6.1f} / Demo: {self.demonstrator_mean:.1f}{surpass}"
+                f"True mean: {mean_reward:6.1f} / Demo: {self.demonstrator_mean:.1f}{surpass}"
             )
 
     def close(self):
@@ -141,9 +144,9 @@ def phase1_train_reference():
         learning_starts=500, epsilon_start=1.0, epsilon_end=0.05,
         epsilon_decay_steps=15_000, target_update_freq=200, log_interval=30,
     )
-    env   = GymEnvWrapper(ENV_NAME)
-    agent = make_dqn_agent(env, config, hidden=[128, 128])
-    Trainer(agent, env, config, ConsoleLogger(log_interval=30, prefix="Ref ")).train()
+    environment = GymEnvWrapper(ENV_NAME)
+    agent = make_dqn_agent(environment, config, hidden_dims=[128, 128])
+    Trainer(agent, environment, config, ConsoleLogger(log_interval=30, prefix="Ref ")).train()
     return agent
 
 
@@ -153,62 +156,62 @@ def phase2_collect_demos(reference_agent, n_levels=6, n_per_level=15):
     print("\n" + "═" * 60)
     print("Phase 2 │ 랭킹된 시연 수집")
     print("═" * 60)
-    buf      = DemonstrationBuffer()
+    demonstration_buffer = DemonstrationBuffer()
     # rank 0 = worst (eps=1.0, random), rank n_levels-1 = best (eps=0.0, greedy)
     epsilons = np.linspace(1.0, 0.0, n_levels)   # [1.0 … 0.0]
 
-    env     = gym.make(ENV_NAME)
+    environment = gym.make(ENV_NAME)
     lengths = {}
     for rank, eps in enumerate(epsilons):   # rank 0 → eps=1.0 (worst)
-        ep_lens = []
+        episode_lengths = []
         for _ in range(n_per_level):
             states, actions = [], []
-            state, _ = env.reset()
+            state, _ = environment.reset()
             done = False
             while not done:
                 if random.random() < eps:
-                    action = env.action_space.sample()
+                    action = environment.action_space.sample()
                 else:
                     action = reference_agent.select_action(state, evaluation=True)
                 states.append(state)
                 actions.append(action)
-                state, _, terminated, truncated, _ = env.step(action)
+                state, _, terminated, truncated, _ = environment.step(action)
                 done = terminated or truncated
-            buf.add_trajectory(
+            demonstration_buffer.add_trajectory(
                 np.array(states,  dtype=np.float32),
                 np.array(actions, dtype=np.int64),
                 rank=rank,
             )
-            ep_lens.append(len(states))
-        lengths[rank] = ep_lens
+            episode_lengths.append(len(states))
+        lengths[rank] = episode_lengths
         print(f"  Rank {rank:2d} (ε={eps:.2f}) | {n_per_level} eps | "
-              f"avg {np.mean(ep_lens):.1f} / max {np.max(ep_lens):.0f}")
+              f"avg {np.mean(episode_lengths):.1f} / max {np.max(episode_lengths):.0f}")
 
-    env.close()
+    environment.close()
     # 최고 랭크(rank = n_levels-1)의 평균 = 시연자 기준 성능
     best_rank = n_levels - 1
     demonstrator_mean = float(np.mean(lengths[best_rank]))
     print(f"\n  시연자 기준 성능 (rank {best_rank}): {demonstrator_mean:.1f} steps")
-    return buf, demonstrator_mean
+    return demonstration_buffer, demonstrator_mean
 
 
 # ── Phase 3 ──────────────────────────────────────────────────────────────────
 
-def phase3_train_reward(buf, state_dim, n_epochs=1000):
+def phase3_train_reward(demonstration_buffer, state_dim, n_epochs=1000):
     print("\n" + "═" * 60)
     print("Phase 3 │ 보상 모델 학습 (Bradley-Terry, 1000 epochs)")
     print("═" * 60)
-    bb     = MLP(input_dim=state_dim, hidden_dims=[128, 128])
-    rm     = RewardModel(bb, action_dim=0)
+    backbone = MLP(input_dim=state_dim, hidden_dims=[128, 128])
+    reward_model = RewardModel(backbone, action_dim=0)
     trainer = RewardModelTrainer(
-        reward_model=rm,
-        optimizer=torch.optim.Adam(rm.parameters(), lr=1e-3),
+        reward_model=reward_model,
+        optimizer=torch.optim.Adam(reward_model.parameters(), lr=1e-3),
         l2_coeff=1e-4,
         device=DEVICE,
     )
-    losses = trainer.train(buf, n_epochs=n_epochs, batch_size=64, log_interval=200)
+    losses = trainer.train(demonstration_buffer, n_epochs=n_epochs, batch_size=64, log_interval=200)
     print(f"  최종 loss: {losses[-1]:.4f}")
-    return rm, losses
+    return reward_model, losses
 
 
 # ── Phase 4 ──────────────────────────────────────────────────────────────────
@@ -227,11 +230,11 @@ def phase4_train_drex(reward_model, demonstrator_mean):
         log_interval=50,
     )
 
-    base_env   = GymEnvWrapper(ENV_NAME)
-    learned_env = LearnedRewardWrapper(base_env, reward_model, device=DEVICE)
-    agent      = make_dqn_agent(learned_env, config, hidden=[128, 128])
+    base_environment = GymEnvWrapper(ENV_NAME)
+    learned_environment = LearnedRewardWrapper(base_environment, reward_model, device=DEVICE)
+    agent = make_dqn_agent(learned_environment, config, hidden_dims=[128, 128])
 
-    agent_ref  = [agent]   # mutable container for logger
+    agent_ref = [agent]   # mutable container for logger
     eval_logger = TrueEvalLogger(
         agent_ref=agent_ref,
         demonstrator_mean=demonstrator_mean,
@@ -241,7 +244,7 @@ def phase4_train_drex(reward_model, demonstrator_mean):
     )
 
     Trainer(
-        agent, learned_env, config,
+        agent, learned_environment, config,
         eval_logger,
         save_path="checkpoints/drex_long_cartpole.pt",
     ).train()
@@ -314,20 +317,35 @@ def plot_results(true_history, demonstrator_mean, reward_losses, surpassed_ep):
 def main():
     print(f"Device: {DEVICE}")
 
-    ref_agent                          = phase1_train_reference()
-    demo_buf, demonstrator_mean        = phase2_collect_demos(ref_agent, n_levels=6, n_per_level=15)
-    reward_model, reward_losses        = phase3_train_reward(demo_buf, state_dim=4, n_epochs=1000)
-    drex_agent, true_history, surp_ep  = phase4_train_drex(reward_model, demonstrator_mean)
+    reference_agent = phase1_train_reference()
+    demonstration_buffer, demonstrator_mean = phase2_collect_demos(
+        reference_agent,
+        n_levels=6,
+        n_per_level=15,
+    )
+    reward_model, reward_losses = phase3_train_reward(
+        demonstration_buffer,
+        state_dim=4,
+        n_epochs=1000,
+    )
+    drex_agent, true_history, surpassed_episode = phase4_train_drex(
+        reward_model,
+        demonstrator_mean,
+    )
 
     print("\n" + "═" * 60)
     print("최종 결과")
     print("═" * 60)
-    final_rewards = true_eval(drex_agent, n=50)
+    final_rewards = true_eval(drex_agent, n_episodes=50)
     print(f"  D-REX 최종 True Mean : {final_rewards.mean():.1f} ± {final_rewards.std():.1f}")
     print(f"  시연자 기준           : {demonstrator_mean:.1f}")
-    print(f"  시연자 초과 시점      : ep {surp_ep}" if surp_ep else "  시연자 미초과 (학습 연장 필요)")
+    print(
+        f"  시연자 초과 시점      : ep {surpassed_episode}"
+        if surpassed_episode
+        else "  시연자 미초과 (학습 연장 필요)"
+    )
 
-    plot_results(true_history, demonstrator_mean, reward_losses, surp_ep)
+    plot_results(true_history, demonstrator_mean, reward_losses, surpassed_episode)
 
 
 if __name__ == "__main__":

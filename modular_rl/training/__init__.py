@@ -1,6 +1,7 @@
 from .env_wrapper import BaseEnv, GymEnvWrapper, CustomEnvWrapper
 from .logger import BaseLogger, ConsoleLogger, MatplotlibLogger, CompositeLogger
 from .registry import Registry
+from .builders import BuildContext, ExperimentBuilder, build_trainer
 from .trainer import Trainer
 from .wrappers import RewardNormWrapper, LearnedRewardWrapper
 from .factory import quick_dqn, quick_sac, quick_ppo, quick_td3
@@ -12,6 +13,8 @@ __all__ = [
     "BaseLogger", "ConsoleLogger", "MatplotlibLogger", "CompositeLogger",
     # Registry
     "Registry",
+    # Config-driven builders
+    "BuildContext", "ExperimentBuilder", "build_trainer",
     # Training loop
     "Trainer",
     # Wrappers

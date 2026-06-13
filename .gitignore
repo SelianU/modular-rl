@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*$py.class
 
 # Package build / install
 *.egg-info/
@@ -23,17 +24,27 @@ checkpoints/
 
 # Training outputs
 *.png
+*.gif
+*.mp4
+results/
 
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 coverage.xml
+
+# Type checking / linting
+.mypy_cache/
+.ruff_cache/
+.pyright/
 
 # Logging (WandB, TensorBoard)
 wandb/
 runs/
 logs/
+*.log
 
 # Secrets
 .env
@@ -46,8 +57,9 @@ logs/
 .vscode/
 .idea/
 
-# Claude Code
+# Agent/tool local state
 .claude/
+.agents/
 
 # OS
 .DS_Store

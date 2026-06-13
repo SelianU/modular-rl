@@ -23,21 +23,28 @@ def train():
     )
     print(f"Using device: {config.device}")
 
-    env = GymEnvWrapper(config.env_name)
-    s_dim = env.state_dim
-    a_dim = env.action_dim
-    a_low = env.action_low
-    a_high = env.action_high
+    environment = GymEnvWrapper(config.env_name)
+    state_dim = environment.state_dim
+    action_dim = environment.action_dim
+    action_low = environment.action_low
+    action_high = environment.action_high
 
-    actor_bb = MLP(input_dim=s_dim, hidden_dims=[256, 256])
-    actor = SACActor(actor_bb, GaussianPolicyHead(actor_bb.output_dim, a_dim, a_low, a_high))
+    actor_backbone = MLP(input_dim=state_dim, hidden_dims=[256, 256])
+    actor = SACActor(
+        actor_backbone,
+        GaussianPolicyHead(actor_backbone.output_dim, action_dim, action_low, action_high),
+    )
 
-    critic_bb = MLP(input_dim=s_dim, hidden_dims=[256, 256])
-    critic = SACCritic(critic_bb, DoubleQCriticHead(critic_bb.output_dim, a_dim, 256))
+    critic_backbone = MLP(input_dim=state_dim, hidden_dims=[256, 256])
+    critic = SACCritic(
+        critic_backbone,
+        DoubleQCriticHead(critic_backbone.output_dim, action_dim, 256),
+    )
 
-    critic_target_bb = MLP(input_dim=s_dim, hidden_dims=[256, 256])
+    critic_target_backbone = MLP(input_dim=state_dim, hidden_dims=[256, 256])
     critic_target = SACCritic(
-        critic_target_bb, DoubleQCriticHead(critic_target_bb.output_dim, a_dim, 256)
+        critic_target_backbone,
+        DoubleQCriticHead(critic_target_backbone.output_dim, action_dim, 256),
     )
 
     agent = SACAgent(
@@ -48,7 +55,7 @@ def train():
         critic_optimizer=torch.optim.Adam(critic.parameters(), lr=config.critic_lr),
         replay_buffer=ReplayBuffer(config.buffer_size, config.device),
         config=config,
-        action_dim=a_dim,
+        action_dim=action_dim,
     )
 
     logger = CompositeLogger([
@@ -56,7 +63,7 @@ def train():
         MatplotlibLogger(save_path="sac_mlp_results.png"),
     ])
 
-    Trainer(agent, env, config, logger, save_path="checkpoints/sac_mlp_pendulum.pt").train()
+    Trainer(agent, environment, config, logger, save_path="checkpoints/sac_mlp_pendulum.pt").train()
 
 
 if __name__ == "__main__":
