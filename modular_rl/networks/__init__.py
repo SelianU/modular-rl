@@ -9,6 +9,7 @@ from .simple import (
     build_model,
     build_sequential_model,
     make_cnn_mlp,
+    make_mini_gpt,
     make_mlp,
     make_rnn,
     make_transformer,

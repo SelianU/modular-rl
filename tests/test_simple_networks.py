@@ -2,7 +2,14 @@ import pytest
 import torch
 import torch.nn as nn
 
-from modular_rl.networks import build_model, make_cnn_mlp, make_mlp, make_rnn, make_transformer
+from modular_rl.networks import (
+    build_model,
+    make_cnn_mlp,
+    make_mini_gpt,
+    make_mlp,
+    make_rnn,
+    make_transformer,
+)
 
 
 def test_make_mlp_maps_input_dim_to_output_dim():
@@ -172,3 +179,45 @@ def test_build_model_creates_transformer_from_dict():
     y = model(torch.randn(4, 3, 5))
 
     assert y.shape == (4, 3, 2)
+
+
+def test_make_mini_gpt_maps_token_ids_to_vocab_logits():
+    model = make_mini_gpt(
+        vocab_size=20,
+        max_seq_len=8,
+        embed_dim=12,
+        num_heads=3,
+        num_layers=1,
+    )
+
+    logits = model(torch.randint(0, 20, (4, 5)))
+
+    assert logits.shape == (4, 5, 20)
+
+
+def test_build_model_creates_mini_gpt_from_dict():
+    model = build_model({
+        "type": "mini_gpt",
+        "vocab_size": 20,
+        "max_seq_len": 8,
+        "embed_dim": 12,
+        "num_heads": 3,
+        "num_layers": 1,
+    })
+
+    logits = model(torch.randint(0, 20, (4, 5)))
+
+    assert logits.shape == (4, 5, 20)
+
+
+def test_mini_gpt_rejects_sequences_longer_than_max_seq_len():
+    model = make_mini_gpt(
+        vocab_size=20,
+        max_seq_len=4,
+        embed_dim=12,
+        num_heads=3,
+        num_layers=1,
+    )
+
+    with pytest.raises(ValueError, match="max_seq_len"):
+        model(torch.randint(0, 20, (2, 5)))

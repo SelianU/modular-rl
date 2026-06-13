@@ -51,7 +51,7 @@ If you only want to build a neural network, start here:
 
 ```python
 import torch
-from modular_rl.networks import make_mlp, make_cnn_mlp, make_rnn, make_transformer
+from modular_rl.networks import make_mlp, make_cnn_mlp, make_rnn, make_transformer, make_mini_gpt
 
 # 1) n-dimensional vector -> m-dimensional output
 n = 10
@@ -86,6 +86,12 @@ print(sequence_out.shape)     # torch.Size([32, 6, 3])
 transformer = make_transformer(input_dim=10, output_dim=3)
 sequence_out = transformer(torch.randn(32, 6, 10))
 print(sequence_out.shape)     # torch.Size([32, 6, 3])
+
+# 4) small GPT-style language model: token ids -> vocabulary logits
+mini_gpt = make_mini_gpt(vocab_size=1000, max_seq_len=64)
+input_ids = torch.randint(0, 1000, (32, 16))
+logits = mini_gpt(input_ids)
+print(logits.shape)           # torch.Size([32, 16, 1000])
 ```
 
 You can also build the same models from dictionaries:
@@ -110,10 +116,24 @@ sequence_model = build_model({
     "num_heads": 4,
     "num_layers": 2,
 })
+
+language_model = build_model({
+    "type": "mini_gpt",
+    "vocab_size": 1000,
+    "max_seq_len": 64,
+    "embed_dim": 128,
+    "num_heads": 4,
+    "num_layers": 2,
+})
 ```
 
 The beginner sequence wrappers return only the output tensor. If you need hidden
 states from an RNN, use the lower-level `RNN` backbone directly.
+
+`MiniGPT` is a small, randomly initialized GPT-style causal language model. It
+does not include a tokenizer, pretrained weights, text generation helpers, or
+Hugging Face compatibility. Its purpose is to make the architecture easy to
+inspect and train from scratch.
 
 For PyTorch-style layer-by-layer construction, use `type="sequential"`.
 The result is still a normal `torch.nn.Module`, so `.parameters()`, `.to(device)`,
