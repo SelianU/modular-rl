@@ -91,6 +91,39 @@ model = build_model({
 })
 ```
 
+For PyTorch-style layer-by-layer construction, use `type="sequential"`.
+The result is still a normal `torch.nn.Module`, so `.parameters()`, `.to(device)`,
+`.train()`, `.eval()`, and PyTorch optimizers all work normally.
+
+```python
+import torch
+from modular_rl.networks import build_model
+
+model = build_model({
+    "type": "sequential",
+    "input_shape": (1, 28, 28),
+    "layers": [
+        {"type": "conv2d", "out_channels": 32, "kernel_size": 3, "padding": 1},
+        {"type": "relu"},
+        {"type": "conv2d", "out_channels": 64, "kernel_size": 3, "padding": 1},
+        {"type": "relu"},
+        {"type": "flatten"},
+        {"type": "linear", "out_features": 128},
+        {"type": "relu"},
+        {"type": "linear", "out_features": 5},
+    ],
+})
+
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+out = model(torch.randn(32, 1, 28, 28))
+print(out.shape)  # torch.Size([32, 5])
+```
+
+Supported sequential layer types include `linear`, `conv2d`, `flatten`, `relu`,
+`tanh`, `sigmoid`, `dropout`, `batch_norm1d`, `batch_norm2d`, and `layer_norm`.
+For `linear` and `conv2d`, common input sizes are inferred from `input_shape`
+and previous layers.
+
 ---
 
 ### RL Training Shortcuts
