@@ -38,7 +38,11 @@ pyproject.toml
 requirements.txt
 LICENSE
 .gitignore
+docs/naming-conventions.md
 ```
+
+Naming and file creation rules live in
+[`docs/naming-conventions.md`](docs/naming-conventions.md).
 
 ## Installation
 
