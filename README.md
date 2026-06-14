@@ -13,9 +13,9 @@ modular_rl/
 │   ├── heads.py            # Q, policy, critic, and value heads
 │   ├── builders.py         # MLP/CNN model builders and build_model
 │   ├── sequence_builders.py # RNN/Transformer beginner builders
-│   ├── language_models.py  # MiniGPT and language model helpers
-│   ├── sequential.py       # Dict-driven nn.Sequential builder
-│   └── simple.py           # Compatibility exports
+│   ├── language_models.py   # MiniGPT and language model helpers
+│   ├── sequential.py        # Dict-driven nn.Sequential builder
+│   └── simple.py            # Compatibility exports for older imports
 │
 ├── algorithms/             # RL agents, buffers, configs, and reward learning
 │   ├── agents/             # DQN, SAC, PPO, TD3 agents
@@ -75,7 +75,13 @@ Use these when you want to create a model quickly without manually wiring every
 
 ```python
 import torch
-from modular_rl.networks import make_mlp, make_mlp_classifier, make_cnn_mlp, make_rnn, make_transformer
+from modular_rl.networks import (
+    make_cnn_mlp,
+    make_mlp,
+    make_mlp_classifier,
+    make_rnn,
+    make_transformer,
+)
 
 # n-dimensional vector -> m-dimensional output
 mlp = make_mlp(input_dim=10, output_dim=3, hidden_dims=[64, 64])
@@ -219,6 +225,10 @@ loss_fn = make_loss("smooth_l1")
 optimizer = make_optimizer("adam", model.parameters(), learning_rate=1e-3)
 metrics = run_training_step(model, inputs, targets, loss_fn, optimizer)
 ```
+
+`run_training_step` and `run_evaluation_step` are the preferred names for new
+code. Older names such as `training_step` remain available as compatibility
+aliases.
 
 When the default batch update is not enough, pass a custom step function. The
 step receives the model, the raw batch, and a context object containing the

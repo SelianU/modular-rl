@@ -10,10 +10,32 @@ the reader to inspect the implementation.
 - Use module names that describe one responsibility.
 - Prefer nouns for component modules: `buffers.py`, `models.py`, `registry.py`.
 - Prefer action-oriented names for builder modules: `builders.py`, `factory.py`.
+- Prefer explicit domain names when a generic name becomes unclear:
+  - `optimizers.py` instead of `optim.py`
+  - `training_steps.py` instead of `steps.py`
+  - `supervised_training.py` instead of `supervised.py`
 - Keep examples named by algorithm and model family:
   - `train_dqn_mlp.py`
   - `train_dqn_cnn.py`
   - `train_sac_mlp.py`
+
+Current core module layout:
+
+```text
+modular_rl/networks/
+├── builders.py            # make_mlp, make_mlp_classifier, make_cnn_mlp, build_model
+├── sequence_builders.py   # make_rnn, make_transformer
+├── language_models.py     # MiniGPT, make_mini_gpt
+├── sequential.py          # build_sequential_model
+└── simple.py              # compatibility exports only
+
+modular_rl/training/
+├── optimizers.py          # make_loss, make_optimizer
+├── training_steps.py      # run_training_step, run_evaluation_step
+├── supervised_training.py # SupervisedTrainingConfig, train_supervised_model
+├── trainer.py             # RL Trainer
+└── builders.py            # build_trainer, ExperimentBuilder
+```
 
 ## Classes
 
@@ -42,6 +64,18 @@ the reader to inspect the implementation.
     - Example: `register_backbone`, `register_logger`
   - `list_*`: return available registry keys.
     - Example: `list_backbones`, `list_optimizers`
+  - `run_*`: execute one explicit operation or step.
+    - Example: `run_training_step`, `run_evaluation_step`
+
+Compatibility aliases may keep an older public function name alive, but new
+code should use the preferred name. Example:
+
+```python
+run_training_step(...)
+
+# Kept only for compatibility:
+training_step = run_training_step
+```
 
 ## Variables
 
@@ -68,6 +102,7 @@ Preferred names:
 | `buf` | `buffer`, `replay_buffer`, `demonstration_buffer` |
 | `ep_r` | `episode_reward` |
 | `ep_lens` | `episode_lengths` |
+| `fn` | `function`, or a precise callable role such as `training_step_function` |
 
 Acceptable short names:
 
@@ -103,6 +138,7 @@ Examples:
 backbone_config = {"type": "mlp", "hidden_dims": [128, 128]}
 trainer_spec = {"algorithm": "dqn", "model": {"backbone": backbone_config}}
 algorithm_config = DQNConfig(total_timesteps=30000)
+training_config = SupervisedTrainingConfig(epochs=10, learning_rate=1e-3)
 ```
 
 ## Neural Network Parts
