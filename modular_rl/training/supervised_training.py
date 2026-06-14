@@ -64,7 +64,6 @@ class SupervisedTrainingHistory:
 
 
 TrainingStepFunction = Callable[[nn.Module, Any, SupervisedTrainingContext], BatchMetrics]
-TrainingStepFn = TrainingStepFunction
 TrainingCallback = Callable[[EpochMetrics, SupervisedTrainingHistory, nn.Module], Optional[bool]]
 
 
@@ -82,7 +81,7 @@ def train_supervised_model(
     gradient_clip_norm: Optional[float] = None,
     log_interval: int = 1,
     callbacks: Optional[List[TrainingCallback]] = None,
-    training_step_fn: Optional[TrainingStepFunction] = None,
+    training_step_function: Optional[TrainingStepFunction] = None,
     **optimizer_kwargs,
 ) -> SupervisedTrainingHistory:
     """
@@ -128,7 +127,7 @@ def train_supervised_model(
             data_loader=train_loader,
             context=training_context,
             epoch=epoch,
-            training_step_fn=training_step_fn,
+            training_step_function=training_step_function,
         )
         validation_metrics = None
         if validation_loader is not None:
@@ -193,14 +192,14 @@ def _run_training_epoch(
     data_loader,
     context: SupervisedTrainingContext,
     epoch: int,
-    training_step_fn: Optional[TrainingStepFunction],
+    training_step_function: Optional[TrainingStepFunction],
 ) -> BatchMetrics:
     batch_metrics = []
     for batch_index, batch in enumerate(data_loader, start=1):
         context.epoch = epoch
         context.batch_index = batch_index
-        if training_step_fn is not None:
-            metrics = training_step_fn(model, batch, context)
+        if training_step_function is not None:
+            metrics = training_step_function(model, batch, context)
         else:
             inputs, targets = batch
             metrics = run_training_step(

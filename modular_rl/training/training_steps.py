@@ -113,8 +113,3 @@ def compute_accuracy(outputs: torch.Tensor, targets: torch.Tensor) -> Optional[f
 
 def _batch_size(targets: torch.Tensor) -> int:
     return int(targets.shape[0]) if targets.dim() > 0 else 1
-
-
-# Compatibility aliases. Prefer run_training_step and run_evaluation_step in new code.
-training_step = run_training_step
-evaluation_step = run_evaluation_step

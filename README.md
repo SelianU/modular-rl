@@ -14,8 +14,7 @@ modular_rl/
 │   ├── builders.py         # MLP/CNN model builders and build_model
 │   ├── sequence_builders.py # RNN/Transformer beginner builders
 │   ├── language_models.py   # MiniGPT and language model helpers
-│   ├── sequential.py        # Dict-driven nn.Sequential builder
-│   └── simple.py            # Compatibility exports for older imports
+│   └── sequential.py        # Dict-driven nn.Sequential builder
 │
 ├── algorithms/             # RL agents, buffers, configs, and reward learning
 │   ├── agents/             # DQN, SAC, PPO, TD3 agents
@@ -226,10 +225,6 @@ optimizer = make_optimizer("adam", model.parameters(), learning_rate=1e-3)
 metrics = run_training_step(model, inputs, targets, loss_fn, optimizer)
 ```
 
-`run_training_step` and `run_evaluation_step` are the preferred names for new
-code. Older names such as `training_step` remain available as compatibility
-aliases.
-
 When the default batch update is not enough, pass a custom step function. The
 step receives the model, the raw batch, and a context object containing the
 loss, optimizer, device, and current epoch/batch index.
@@ -237,7 +232,7 @@ loss, optimizer, device, and current epoch/batch index.
 ```python
 from modular_rl.training import BatchMetrics
 
-def custom_training_step(model, batch, context):
+def run_custom_training_step(model, batch, context):
     inputs, targets = batch
     inputs = inputs.to(context.device)
     targets = targets.to(context.device)
@@ -255,7 +250,7 @@ history = train_supervised_model(
     model=model,
     train_loader=train_loader,
     config=config,
-    training_step_fn=custom_training_step,
+    training_step_function=run_custom_training_step,
 )
 ```
 

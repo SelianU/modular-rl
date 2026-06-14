@@ -26,8 +26,7 @@ modular_rl/networks/
 ├── builders.py            # make_mlp, make_mlp_classifier, make_cnn_mlp, build_model
 ├── sequence_builders.py   # make_rnn, make_transformer
 ├── language_models.py     # MiniGPT, make_mini_gpt
-├── sequential.py          # build_sequential_model
-└── simple.py              # compatibility exports only
+└── sequential.py          # build_sequential_model
 
 modular_rl/training/
 ├── optimizers.py          # make_loss, make_optimizer
@@ -66,16 +65,6 @@ modular_rl/training/
     - Example: `list_backbones`, `list_optimizers`
   - `run_*`: execute one explicit operation or step.
     - Example: `run_training_step`, `run_evaluation_step`
-
-Compatibility aliases may keep an older public function name alive, but new
-code should use the preferred name. Example:
-
-```python
-run_training_step(...)
-
-# Kept only for compatibility:
-training_step = run_training_step
-```
 
 ## Variables
 
@@ -179,11 +168,12 @@ a_dim = env.action_dim
 q_net = QNetwork(bb, QHead(bb.output_dim, a_dim))
 ```
 
-## Compatibility
+## Pre-release API Changes
 
-Do not rename public APIs casually. If a public name must change:
+This project is still pre-release. Prefer one clear public API over old-name
+aliases. If a public name must change before release:
 
-1. Add the new name.
-2. Keep the old name as a compatibility alias.
-3. Document the migration path.
-4. Remove the old name only in a planned breaking release.
+1. Move the code to the new name.
+2. Update README and naming conventions.
+3. Update internal imports.
+4. Verify the new public API.

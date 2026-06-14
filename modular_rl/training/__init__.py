@@ -6,10 +6,8 @@ from .trainer import Trainer
 from .optimizers import make_loss, make_optimizer
 from .training_steps import (
     BatchMetrics,
-    evaluation_step,
     run_evaluation_step,
     run_training_step,
-    training_step,
 )
 from .supervised_training import (
     EpochMetrics,
@@ -18,7 +16,6 @@ from .supervised_training import (
     SupervisedTrainingHistory,
     TrainingCallback,
     TrainingStepFunction,
-    TrainingStepFn,
     evaluate_supervised_model,
     train_supervised_model,
 )
@@ -37,11 +34,10 @@ __all__ = [
     # Training loop
     "Trainer",
     "make_loss", "make_optimizer",
-    "BatchMetrics", "evaluation_step", "run_evaluation_step",
-    "run_training_step", "training_step",
+    "BatchMetrics", "run_evaluation_step", "run_training_step",
     "EpochMetrics", "SupervisedTrainingConfig", "SupervisedTrainingContext",
     "SupervisedTrainingHistory", "TrainingCallback",
-    "TrainingStepFunction", "TrainingStepFn",
+    "TrainingStepFunction",
     "evaluate_supervised_model", "train_supervised_model",
     # Wrappers
     "RewardNormWrapper", "LearnedRewardWrapper",
