@@ -170,6 +170,25 @@ from lattice import quick_dqn
 quick_dqn("CartPole-v1").train()
 ```
 
+If your environment loop lives outside `lattice`, create only the agent:
+
+```python
+from lattice import make_dqn_agent
+
+agent = make_dqn_agent(
+    state_dim=4,
+    action_dim=2,
+    hidden_dims=[128, 128],
+    total_timesteps=30000,
+    learning_starts=1000,
+)
+
+action = agent.select_action(state)
+next_state, reward, done, info = external_system_step(action)
+agent.observe(state, action, reward, next_state, done)
+metrics = agent.update()
+```
+
 For explicit agent construction:
 
 ```python
@@ -191,6 +210,16 @@ action = agent.select_action(state)
 next_state, reward, done, info = external_system_step(action)
 agent.observe(state, action, reward, next_state, done)
 metrics = agent.update()
+```
+
+Continuous-control agents have the same beginner-friendly shape:
+
+```python
+from lattice import make_ppo_agent, make_sac_agent, make_td3_agent
+
+ppo_agent = make_ppo_agent(state_dim=4, action_dim=2)
+sac_agent = make_sac_agent(state_dim=3, action_dim=1)
+td3_agent = make_td3_agent(state_dim=3, action_dim=1)
 ```
 
 For one-step convenience:
