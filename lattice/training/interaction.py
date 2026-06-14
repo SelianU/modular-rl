@@ -1,12 +1,16 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import numpy as np
 
-from .hooks import HookManager, HookSpec, RLHookContext, RLTransition
+from .hooks import HookManager, HookSpec, RLHookContext, RLTransition, RL_HOOK_NAMES
 
 
-TransitionFunction = Callable[[Any], Tuple[np.ndarray, float, bool]]
+TransitionResult = Union[
+    Tuple[np.ndarray, float, bool],
+    Tuple[np.ndarray, float, bool, Dict[str, Any]],
+]
+TransitionFunction = Callable[[Any], TransitionResult]
 
 
 @dataclass(frozen=True)
@@ -35,7 +39,7 @@ def run_interaction_step(
     The transition_function owns the outside world. It receives the action and
     returns (next_state, reward, done).
     """
-    hook_manager = HookManager(hooks)
+    hook_manager = HookManager(hooks, allowed_names=RL_HOOK_NAMES)
     hook_context = context or RLHookContext(
         agent=agent,
         environment=None,
@@ -55,7 +59,7 @@ def run_interaction_step(
         evaluation=evaluation,
     )
     action = hook_manager.transform("process_action", action, context=hook_context)
-    next_state, reward, done = transition_function(action)
+    next_state, reward, done, info = _unpack_transition_result(transition_function(action))
     next_state = hook_manager.transform(
         "process_next_state",
         next_state,
@@ -69,6 +73,7 @@ def run_interaction_step(
         reward=reward,
         next_state=next_state,
         done=done,
+        info=info,
     )
     reward = hook_manager.transform(
         "process_reward",
@@ -100,4 +105,17 @@ def run_interaction_step(
         reward=reward,
         done=done,
         metrics=metrics,
+    )
+
+
+def _unpack_transition_result(result: TransitionResult) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
+    if len(result) == 3:
+        next_state, reward, done = result
+        return next_state, float(reward), bool(done), {}
+    if len(result) == 4:
+        next_state, reward, done, info = result
+        return next_state, float(reward), bool(done), dict(info)
+    raise ValueError(
+        "transition_function must return (next_state, reward, done) "
+        "or (next_state, reward, done, info)."
     )

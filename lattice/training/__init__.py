@@ -4,8 +4,15 @@ from .registry import Registry
 from .builders import ExperimentBuilder, build_trainer
 from .rl_trainer import RLTrainer
 from .optimizers import make_loss, make_optimizer
-from .hooks import HookManager, RLHookContext, RLTransition, SupervisedHookContext
-from .interaction import InteractionStep, TransitionFunction, run_interaction_step
+from .hooks import (
+    HookManager,
+    RLHookContext,
+    RLTransition,
+    SupervisedHookContext,
+    RL_HOOK_NAMES,
+    SUPERVISED_HOOK_NAMES,
+)
+from .interaction import InteractionStep, TransitionFunction, TransitionResult, run_interaction_step
 from .training_steps import (
     BatchMetrics,
     run_evaluation_step,
@@ -36,7 +43,8 @@ __all__ = [
     # Training loop
     "RLTrainer",
     "HookManager", "RLHookContext", "RLTransition", "SupervisedHookContext",
-    "InteractionStep", "TransitionFunction", "run_interaction_step",
+    "RL_HOOK_NAMES", "SUPERVISED_HOOK_NAMES",
+    "InteractionStep", "TransitionFunction", "TransitionResult", "run_interaction_step",
     "make_loss", "make_optimizer",
     "BatchMetrics", "run_evaluation_step", "run_training_step",
     "EpochMetrics", "SupervisedTrainingConfig", "SupervisedTrainingContext",

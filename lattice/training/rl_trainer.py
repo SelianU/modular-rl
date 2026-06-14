@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from .env_wrapper import BaseEnv
-from .hooks import HookManager, HookSpec, RLHookContext, RLTransition
+from .hooks import HookManager, HookSpec, RLHookContext, RLTransition, RL_HOOK_NAMES
 from .logger import BaseLogger, ConsoleLogger
 
 
@@ -44,7 +44,7 @@ class RLTrainer:
             log_interval=getattr(config, "log_interval", 10)
         )
         self.save_path = save_path
-        self.hooks = HookManager(hooks)
+        self.hooks = HookManager(hooks, allowed_names=RL_HOOK_NAMES)
 
     def add_hook(self, name: str, hook) -> None:
         self.hooks.add(name, hook)
@@ -186,15 +186,64 @@ class RLTrainer:
         Returns mean and std of episode rewards.
         """
         rewards = []
-        for _ in range(n_episodes):
+        hook_context = RLHookContext(
+            agent=self.agent,
+            environment=self.env,
+            config=self.config,
+            evaluation=True,
+        )
+        for episode_index in range(1, n_episodes + 1):
+            hook_context.episode = episode_index
             state = self.env.reset()
             self._maybe_reset_hidden()
+            self.hooks.run("on_episode_start", state=state, context=hook_context)
             ep_reward = 0.0
             done = False
             while not done:
-                action = self.agent.select_action(state, evaluation=True)
-                state, reward, done, _ = self.env.step(action)
+                processed_state = self.hooks.transform(
+                    "process_state",
+                    state,
+                    context=hook_context,
+                )
+                custom_action = self.hooks.first(
+                    "select_action",
+                    agent=self.agent,
+                    state=processed_state,
+                    context=hook_context,
+                )
+                action = (
+                    custom_action
+                    if custom_action is not None
+                    else self.agent.select_action(processed_state, evaluation=True)
+                )
+                action = self.hooks.transform("process_action", action, context=hook_context)
+                next_state, reward, done, info = self.env.step(action)
+                next_state = self.hooks.transform(
+                    "process_next_state",
+                    next_state,
+                    state=processed_state,
+                    action=action,
+                    context=hook_context,
+                )
+                transition = RLTransition(
+                    state=processed_state,
+                    action=action,
+                    reward=reward,
+                    next_state=next_state,
+                    done=done,
+                    info=info,
+                )
+                reward = self.hooks.transform(
+                    "process_reward",
+                    reward,
+                    transition=transition,
+                    context=hook_context,
+                )
+                transition.reward = reward
+                state = transition.next_state
                 ep_reward += reward
+            hook_context.metrics = {"eval_reward": ep_reward}
+            self.hooks.run("on_episode_end", metrics=hook_context.metrics, context=hook_context)
             rewards.append(ep_reward)
         return {
             "mean_reward": float(np.mean(rewards)),

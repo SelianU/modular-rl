@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from .optimizers import LossLike, OptimizerLike, make_loss, make_optimizer
-from .hooks import HookManager, HookSpec, SupervisedHookContext
+from .hooks import HookManager, HookSpec, SupervisedHookContext, SUPERVISED_HOOK_NAMES
 from .training_steps import BatchMetrics, run_evaluation_step, run_training_step
 
 
@@ -106,7 +106,7 @@ def train_supervised_model(
         optimizer_kwargs = merged_optimizer_kwargs
 
     callbacks = [] if callbacks is None else callbacks
-    hook_manager = HookManager(hooks)
+    hook_manager = HookManager(hooks, allowed_names=SUPERVISED_HOOK_NAMES)
     model = model.to(device)
     loss_fn = make_loss(loss)
     optimizer_instance = make_optimizer(
@@ -235,6 +235,8 @@ def _run_training_epoch(
                 device=context.device,
                 output_mode=context.output_mode,
                 gradient_clip_norm=context.gradient_clip_norm,
+                hooks=hooks,
+                hook_context=hook_context,
             )
         hook_context.metrics = {
             "loss": metrics.loss,

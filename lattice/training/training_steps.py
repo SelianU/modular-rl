@@ -4,6 +4,8 @@ from typing import Optional
 import torch
 import torch.nn as nn
 
+from .hooks import HookManager, SupervisedHookContext
+
 
 @dataclass(frozen=True)
 class BatchMetrics:
@@ -23,6 +25,8 @@ def run_training_step(
     device: str = "cpu",
     output_mode: str = "auto",
     gradient_clip_norm: Optional[float] = None,
+    hooks: Optional[HookManager] = None,
+    hook_context: Optional[SupervisedHookContext] = None,
 ) -> BatchMetrics:
     """
     Run one differentiable update.
@@ -37,13 +41,31 @@ def run_training_step(
 
     outputs = model(inputs)
     outputs = select_training_outputs(outputs, output_mode=output_mode)
-    loss = loss_fn(outputs, targets)
+    custom_loss = None
+    if hooks is not None:
+        custom_loss = hooks.first(
+            "compute_loss",
+            model=model,
+            outputs=outputs,
+            targets=targets,
+            loss_fn=loss_fn,
+            context=hook_context,
+        )
+    loss = custom_loss if custom_loss is not None else loss_fn(outputs, targets)
 
     optimizer.zero_grad()
+    if hooks is not None:
+        hooks.run("before_backward", loss=loss, model=model, context=hook_context)
     loss.backward()
+    if hooks is not None:
+        hooks.run("after_backward", loss=loss, model=model, context=hook_context)
     if gradient_clip_norm is not None:
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gradient_clip_norm)
+    if hooks is not None:
+        hooks.run("before_optimizer_step", optimizer=optimizer, model=model, context=hook_context)
     optimizer.step()
+    if hooks is not None:
+        hooks.run("after_optimizer_step", optimizer=optimizer, model=model, context=hook_context)
 
     return BatchMetrics(
         loss=loss.item(),

@@ -303,6 +303,11 @@ Common supervised hook names:
 before_epoch
 before_batch
 process_batch
+compute_loss
+before_backward
+after_backward
+before_optimizer_step
+after_optimizer_step
 after_batch
 after_epoch
 ```
@@ -420,6 +425,9 @@ before_update
 after_update
 on_episode_end
 ```
+
+Unknown hook names raise a `ValueError`, so typos such as
+`"process_rewrad"` fail early instead of being silently ignored.
 
 ### DQN Backbone Choices
 
