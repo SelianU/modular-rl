@@ -144,6 +144,13 @@ For RL agents:
 
 - Use `*_config` for structured settings.
 - Use `*_spec` for dictionary inputs that describe how to build an object.
+- Use explicit names for prebuilt RL modules:
+  - `q_network`
+  - `target_q_network`
+  - `actor`
+  - `critic`
+  - `actor_target`
+  - `critic_target`
 
 Examples:
 

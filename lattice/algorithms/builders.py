@@ -1,3 +1,4 @@
+import copy
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
@@ -81,10 +82,11 @@ class AgentBuilder:
 
         state_dim = spec.get("state_dim")
         input_shape = spec.get("input_shape")
-        if state_dim is None and input_shape is None:
+        if state_dim is None and input_shape is None and not AgentBuilder._has_prebuilt_model(spec):
             raise ValueError(
                 "Agent-only construction requires either state_dim for vector "
-                "states or input_shape for image/sequence states."
+                "states, input_shape for image/sequence states, or a prebuilt "
+                "model module."
             )
 
         if input_shape is not None:
@@ -104,6 +106,9 @@ class AgentBuilder:
         )
 
     def _build_dqn_agent(self, context: AgentBuildContext, spec: Dict[str, Any]) -> DQNAgent:
+        if self._has_prebuilt_dqn_model(spec):
+            return self._build_custom_dqn_agent(context, spec)
+
         hidden_dims = self._hidden_dims(spec, default=[128, 128])
         backbone_type = self._backbone_type(spec, default="mlp")
 
@@ -167,6 +172,36 @@ class AgentBuilder:
             is_recurrent=is_recurrent,
         )
 
+    def _build_custom_dqn_agent(self, context: AgentBuildContext, spec: Dict[str, Any]) -> DQNAgent:
+        model_spec = spec.get("model", {})
+        if isinstance(model_spec, nn.Module):
+            q_network = model_spec
+            target_q_network = copy.deepcopy(q_network)
+            is_recurrent = bool(spec.get("is_recurrent", False))
+        else:
+            q_network = model_spec["q_network"]
+            target_q_network = model_spec.get("target_q_network") or copy.deepcopy(q_network)
+            is_recurrent = bool(model_spec.get("is_recurrent", spec.get("is_recurrent", False)))
+
+        replay_buffer = self.registry.build_buffer(
+            self._buffer_type(spec, "sequence_replay" if is_recurrent else "replay"),
+            **self._buffer_kwargs(context, "transformer" if is_recurrent else "mlp"),
+        )
+        criterion = spec.get(
+            "criterion",
+            nn.MSELoss(reduction="none") if is_recurrent else nn.SmoothL1Loss(),
+        )
+        return DQNAgent(
+            q_network=q_network,
+            target_network=target_q_network,
+            optimizer=self._optimizer(q_network.parameters(), spec, context.config.learning_rate),
+            criterion=criterion,
+            replay_buffer=replay_buffer,
+            config=context.config,
+            action_dim=context.action_dim,
+            is_recurrent=is_recurrent,
+        )
+
     def _buffer_kwargs(self, context: AgentBuildContext, backbone_type: str) -> Dict[str, Any]:
         if backbone_type == "transformer":
             return {
@@ -180,6 +215,9 @@ class AgentBuilder:
 
     def _build_sac_agent(self, context: AgentBuildContext, spec: Dict[str, Any]) -> SACAgent:
         self._require_continuous(context, "sac")
+        if self._has_prebuilt_actor_critic(spec):
+            return self._build_custom_sac_agent(context, spec)
+
         hidden_dims = self._hidden_dims(spec, default=[256, 256])
 
         actor_backbone = self._mlp(self._require_state_dim(context, "sac"), hidden_dims)
@@ -204,7 +242,30 @@ class AgentBuilder:
             action_dim=context.action_dim,
         )
 
+    def _build_custom_sac_agent(self, context: AgentBuildContext, spec: Dict[str, Any]) -> SACAgent:
+        model_spec = spec["model"]
+        actor = model_spec["actor"]
+        critic = model_spec["critic"]
+        critic_target = model_spec.get("critic_target") or copy.deepcopy(critic)
+        return SACAgent(
+            actor=actor,
+            critic=critic,
+            critic_target=critic_target,
+            actor_optimizer=self._optimizer(actor.parameters(), spec, context.config.actor_lr, "actor_optimizer"),
+            critic_optimizer=self._optimizer(critic.parameters(), spec, context.config.critic_lr, "critic_optimizer"),
+            replay_buffer=self.registry.build_buffer(
+                self._buffer_type(spec, "replay"),
+                capacity=context.config.buffer_size,
+                device=context.config.device,
+            ),
+            config=context.config,
+            action_dim=context.action_dim,
+        )
+
     def _build_ppo_agent(self, context: AgentBuildContext, spec: Dict[str, Any]) -> PPOAgent:
+        if self._has_prebuilt_actor_critic(spec):
+            return self._build_custom_ppo_agent(context, spec)
+
         hidden_dims = self._hidden_dims(spec, default=[64, 64])
         input_dim = self._require_state_dim(context, "ppo")
         actor_backbone = self._mlp(input_dim, hidden_dims)
@@ -232,14 +293,60 @@ class AgentBuilder:
             config=context.config,
         )
 
+    def _build_custom_ppo_agent(self, context: AgentBuildContext, spec: Dict[str, Any]) -> PPOAgent:
+        model_spec = spec["model"]
+        actor = model_spec["actor"]
+        critic = model_spec["critic"]
+        return PPOAgent(
+            actor=actor,
+            critic=critic,
+            actor_optimizer=self._optimizer(actor.parameters(), spec, context.config.learning_rate, "actor_optimizer"),
+            critic_optimizer=self._optimizer(critic.parameters(), spec, context.config.learning_rate, "critic_optimizer"),
+            rollout_buffer=self.registry.build_buffer(
+                self._buffer_type(spec, "rollout"),
+                n_steps=context.config.n_steps,
+                device=context.config.device,
+                gamma=context.config.gamma,
+                gae_lambda=context.config.gae_lambda,
+            ),
+            config=context.config,
+        )
+
     def _build_td3_agent(self, context: AgentBuildContext, spec: Dict[str, Any]) -> TD3Agent:
         self._require_continuous(context, "td3")
+        if self._has_prebuilt_actor_critic(spec):
+            return self._build_custom_td3_agent(context, spec)
+
         hidden_dims = self._hidden_dims(spec, default=[256, 256])
 
         actor = self._td3_actor(context, hidden_dims)
         actor_target = self._td3_actor(context, hidden_dims)
         critic = self._double_q_critic(context, hidden_dims)
         critic_target = self._double_q_critic(context, hidden_dims)
+        return TD3Agent(
+            actor=actor,
+            actor_target=actor_target,
+            critic=critic,
+            critic_target=critic_target,
+            actor_optimizer=self._optimizer(actor.parameters(), spec, context.config.learning_rate, "actor_optimizer"),
+            critic_optimizer=self._optimizer(critic.parameters(), spec, context.config.learning_rate, "critic_optimizer"),
+            replay_buffer=self.registry.build_buffer(
+                self._buffer_type(spec, "replay"),
+                capacity=context.config.buffer_size,
+                device=context.config.device,
+            ),
+            config=context.config,
+            action_dim=context.action_dim,
+            action_low=context.action_low,
+            action_high=context.action_high,
+        )
+
+    def _build_custom_td3_agent(self, context: AgentBuildContext, spec: Dict[str, Any]) -> TD3Agent:
+        model_spec = spec["model"]
+        actor = model_spec["actor"]
+        critic = model_spec["critic"]
+        actor_target = model_spec.get("actor_target") or copy.deepcopy(actor)
+        critic_target = model_spec.get("critic_target") or copy.deepcopy(critic)
         return TD3Agent(
             actor=actor,
             actor_target=actor_target,
@@ -366,6 +473,37 @@ class AgentBuilder:
 
     def _buffer_type(self, spec: Dict[str, Any], default: str) -> str:
         return spec.get("buffer", {}).get("type", default)
+
+    @staticmethod
+    def _has_prebuilt_model(spec: Dict[str, Any]) -> bool:
+        model_spec = spec.get("model")
+        if isinstance(model_spec, nn.Module):
+            return True
+        if not isinstance(model_spec, dict):
+            return False
+        return any(
+            key in model_spec
+            for key in (
+                "q_network",
+                "target_q_network",
+                "actor",
+                "critic",
+                "actor_target",
+                "critic_target",
+            )
+        )
+
+    @staticmethod
+    def _has_prebuilt_dqn_model(spec: Dict[str, Any]) -> bool:
+        model_spec = spec.get("model")
+        return isinstance(model_spec, nn.Module) or (
+            isinstance(model_spec, dict) and "q_network" in model_spec
+        )
+
+    @staticmethod
+    def _has_prebuilt_actor_critic(spec: Dict[str, Any]) -> bool:
+        model_spec = spec.get("model")
+        return isinstance(model_spec, dict) and "actor" in model_spec and "critic" in model_spec
 
     @staticmethod
     def _require_state_dim(context: AgentBuildContext, component_name: str) -> int:

@@ -397,6 +397,57 @@ agent = build_agent({
 })
 ```
 
+### Prebuilt Models
+
+You can also build the neural network first, then pass it into an RL agent. This
+is useful when you want full PyTorch control over the model and want `lattice`
+to handle replay buffers, action selection, target updates, and optimization.
+
+For DQN, pass a Q-network that maps `state -> action_values`:
+
+```python
+from lattice.algorithms import build_agent
+from lattice.networks import make_mlp
+
+q_network = make_mlp(input_dim=4, output_dim=2, hidden_dims=[128, 128])
+
+agent = build_agent({
+    "algorithm": "dqn",
+    "action_dim": 2,
+    "model": q_network,
+    "config": {"total_timesteps": 30000, "learning_starts": 1000},
+})
+```
+
+For more control, pass both the online and target Q-networks. If
+`target_q_network` is omitted, `lattice` deep-copies `q_network`.
+
+```python
+agent = build_agent({
+    "algorithm": "dqn",
+    "action_dim": 2,
+    "model": {
+        "q_network": q_network,
+        "target_q_network": target_q_network,
+    },
+    "config": {"total_timesteps": 30000, "learning_starts": 1000},
+})
+```
+
+Actor-critic algorithms accept prebuilt actor and critic modules:
+
+```python
+agent = build_agent({
+    "algorithm": "ppo",
+    "action_dim": 2,
+    "model": {
+        "actor": actor,
+        "critic": critic,
+    },
+    "config": {"total_timesteps": 30000},
+})
+```
+
 ## Config-Driven RL Trainers
 
 Use `build_trainer` when you want the library to own the environment loop too.
