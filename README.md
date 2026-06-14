@@ -46,6 +46,7 @@ from lattice import quick_dqn
 
 trainer = quick_dqn("CartPole-v1", total_timesteps=30000)
 history = trainer.train()
+print(history.last("reward"))
 ```
 
 ## Choose Your Level
@@ -128,6 +129,9 @@ history = train_supervised_model(
         epochs=10,
     ),
 )
+
+print(history.as_dict())
+print(history.last("validation_accuracy"))
 ```
 
 When you need a custom batch update, pass a custom training step:
@@ -215,6 +219,9 @@ trainer = build_trainer({
 
 trainer.train()
 ```
+
+`trainer.train()` returns an `RLTrainingHistory`, so supervised and RL training
+results can both be inspected with `history.as_dict()` and `history.last(name)`.
 
 ## Changing DQN Backbones
 
@@ -394,8 +401,8 @@ project-specific backbones, loggers, optimizers, buffers, and environments.
 ```text
 lattice/
 ├── networks/      # Model builders, encoders, heads
-├── algorithms/    # RL agents, buffers, configs, updates
-└── training/      # Supervised/RL training loops, hooks, loggers
+├── algorithms/    # RL agents, algorithm-specific builders, buffers, updates
+└── training/      # Supervised/RL training loops, histories, hooks, loggers
 ```
 
 Naming and file creation rules live in
@@ -408,6 +415,13 @@ torch>=2.0.0
 gymnasium[classic-control]>=0.28.1
 numpy>=1.22.0
 matplotlib>=3.5.0
+```
+
+For development and tests:
+
+```bash
+.venv/bin/python -m pip install -e ".[dev]"
+.venv/bin/pytest
 ```
 
 ## License

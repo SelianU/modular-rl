@@ -1,6 +1,7 @@
 from .env_wrapper import BaseEnv, GymEnvWrapper, CustomEnvWrapper
 from .logger import BaseLogger, ConsoleLogger, MatplotlibLogger, CompositeLogger
 from .registry import Registry
+from .history import MetricHistory, RLTrainingHistory
 from .builders import ExperimentBuilder, build_trainer
 from .rl_trainer import RLTrainer
 from .optimizers import make_loss, make_optimizer
@@ -38,6 +39,7 @@ __all__ = [
     "BaseLogger", "ConsoleLogger", "MatplotlibLogger", "CompositeLogger",
     # Registry
     "Registry",
+    "MetricHistory", "RLTrainingHistory",
     # Config-driven builders
     "ExperimentBuilder", "build_trainer",
     # Training loop

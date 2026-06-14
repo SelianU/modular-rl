@@ -63,6 +63,13 @@ class SupervisedTrainingHistory:
             "validation_accuracy": [metrics.validation_accuracy for metrics in self.epochs],
         }
 
+    def last(self, name: str) -> Optional[float]:
+        values = self.as_dict().get(name, [])
+        for value in reversed(values):
+            if value is not None:
+                return value
+        return None
+
 
 TrainingStepFunction = Callable[[nn.Module, Any, SupervisedTrainingContext], BatchMetrics]
 TrainingCallback = Callable[[EpochMetrics, SupervisedTrainingHistory, nn.Module], Optional[bool]]

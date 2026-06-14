@@ -15,5 +15,10 @@ dependencies = [
     "matplotlib>=3.5.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
 [tool.setuptools.packages.find]
 include = ["lattice*"]

@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from .env_wrapper import BaseEnv
+from .history import RLTrainingHistory
 from .hooks import HookManager, HookSpec, RLHookContext, RLTransition, RL_HOOK_NAMES
 from .logger import BaseLogger, ConsoleLogger
 
@@ -53,13 +54,13 @@ class RLTrainer:
     # Training                                                             #
     # ------------------------------------------------------------------ #
 
-    def train(self) -> Dict[str, List[float]]:
+    def train(self) -> RLTrainingHistory:
         """
         Run the full training loop.
         Returns a dict of episode-level metric histories, e.g.:
         {"reward": [...], "loss": [...], "epsilon": [...]}
         """
-        history: Dict[str, List[float]] = {}
+        history = RLTrainingHistory()
         episode_reward = 0.0
         step_buf: Dict[str, List[float]] = {}
         curr_episode = 0
@@ -145,8 +146,7 @@ class RLTrainer:
                     log_metrics[k] = float(np.mean(vs))
 
                 self.logger.log_episode(curr_episode, global_step, log_metrics)
-                for k, v in log_metrics.items():
-                    history.setdefault(k, []).append(v)
+                history.append(log_metrics)
 
                 hook_context.metrics = log_metrics
                 self.hooks.run("on_episode_end", metrics=log_metrics, context=hook_context)
@@ -156,8 +156,7 @@ class RLTrainer:
                     eval_result = self.evaluate(n_episodes=5)
                     eval_metrics = {"eval_reward": eval_result["mean_reward"]}
                     self.logger.log_episode(curr_episode, global_step, eval_metrics)
-                    for k, v in eval_metrics.items():
-                        history.setdefault(k, []).append(v)
+                    history.append(eval_metrics)
 
                 state = self.env.reset()
                 self._maybe_reset_hidden()
