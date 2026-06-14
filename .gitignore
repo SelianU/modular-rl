@@ -29,6 +29,7 @@ checkpoints/
 results/
 
 # Type checking / linting
+.pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .pyright/
