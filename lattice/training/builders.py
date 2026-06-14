@@ -26,11 +26,14 @@ class ExperimentBuilder:
 
         environment = self._build_env(spec.get("env", {}), algorithm)
         algorithm_config = self._build_config(algorithm, environment, spec.get("config", {}))
+        state_shape = environment.state_dim if isinstance(environment.state_dim, tuple) else (environment.state_dim,)
+        state_dim = environment.state_dim if isinstance(environment.state_dim, int) else None
         context = AgentBuildContext(
             algorithm=algorithm,
-            state_dim=environment.state_dim,
             action_dim=environment.action_dim,
             config=algorithm_config,
+            state_dim=state_dim,
+            input_shape=state_shape,
             is_continuous=environment.is_continuous,
             action_low=getattr(environment, "action_low", -1.0) or -1.0,
             action_high=getattr(environment, "action_high", 1.0) or 1.0,

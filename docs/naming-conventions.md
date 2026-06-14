@@ -130,6 +130,16 @@ Acceptable short names:
 Use `input_shape` for image or tensor shapes. For image models, prefer
 `(channels, height, width)`.
 
+For RL agents:
+
+- Use `state_dim` for one-dimensional vector observations.
+- Use `input_shape` for image or sequence observations:
+  - CNN: `(channels, height, width)`
+  - Transformer over vectors: `(sequence_length, feature_dim)`
+  - Transformer over images: `(sequence_length, channels, height, width)`
+- Keep `config.sequence_length` aligned with the sequence length used by RNN or
+  Transformer DQN.
+
 ## Config Dictionaries
 
 - Use `*_config` for structured settings.

@@ -338,6 +338,65 @@ state = get_initial_state() if result.done else result.next_state
 print(result.action, result.reward, result.metrics)
 ```
 
+### DQN Backbone Choices
+
+Use `state_dim` for vector states and `input_shape` for image or sequence
+states.
+
+MLP for vector observations:
+
+```python
+agent = build_agent({
+    "algorithm": "dqn",
+    "state_dim": 4,
+    "action_dim": 2,
+    "model": {"backbone": {"type": "mlp", "hidden_dims": [128, 128]}},
+    "config": {"total_timesteps": 30000, "learning_starts": 1000},
+})
+```
+
+CNN for image observations:
+
+```python
+agent = build_agent({
+    "algorithm": "dqn",
+    "input_shape": (1, 84, 84),
+    "action_dim": 4,
+    "model": {
+        "backbone": {
+            "type": "cnn",
+            "channels": [32, 64, 64],
+            "feature_dim": 256,
+        }
+    },
+    "config": {"total_timesteps": 30000, "learning_starts": 1000},
+})
+```
+
+Transformer for sequence observations:
+
+```python
+agent = build_agent({
+    "algorithm": "dqn",
+    "input_shape": (16, 32),  # sequence_length, feature_dim
+    "action_dim": 5,
+    "model": {
+        "backbone": {
+            "type": "transformer",
+            "hidden_dims": [128],
+            "embed_dim": 128,
+            "num_heads": 4,
+            "num_layers": 2,
+        }
+    },
+    "config": {
+        "total_timesteps": 30000,
+        "learning_starts": 1000,
+        "sequence_length": 16,
+    },
+})
+```
+
 ## Config-Driven RL Trainers
 
 Use `build_trainer` when you want the library to own the environment loop too.

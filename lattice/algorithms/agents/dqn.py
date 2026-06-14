@@ -82,6 +82,8 @@ class DQNAgent(BaseAgent):
                 state_t = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
                 if self.is_recurrent:
                     q_values, self.hidden_state = self.q_network(state_t, self.hidden_state)
+                    if q_values.dim() == 3:
+                        q_values = q_values[:, -1, :]
                 else:
                     q_values = self.q_network(state_t)
                 return q_values.argmax(dim=-1).item()
@@ -142,7 +144,7 @@ class DQNAgent(BaseAgent):
     def _update_recurrent(self) -> dict:
         # Sequence batch size and sequence length
         # For RNNs, we sample sequences of length L
-        seq_len = 10  # This could be configurable
+        seq_len = self.config.sequence_length
         states, actions, rewards, next_states, dones, masks = self.replay_buffer.sample(
             self.config.batch_size, seq_len
         )

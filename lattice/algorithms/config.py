@@ -19,6 +19,7 @@ class DQNConfig:
     target_update_freq: int = 200
     learning_starts: int = 1000
     is_double: bool = False         # Enable Double DQN
+    sequence_length: int = 10        # Sequence length for RNN/Transformer DQN
 
     # Exploration (epsilon-greedy)
     epsilon_start: float = 1.0
@@ -47,6 +48,8 @@ class DQNConfig:
             )
         if not (0 < self.gamma <= 1):
             raise ValueError(f"gamma must be in (0, 1], got {self.gamma}")
+        if self.sequence_length <= 0:
+            raise ValueError(f"sequence_length must be > 0, got {self.sequence_length}")
         if not (0.0 <= self.epsilon_end <= self.epsilon_start <= 1.0):
             raise ValueError(
                 f"Epsilon must satisfy 0 <= epsilon_end <= epsilon_start <= 1, "
