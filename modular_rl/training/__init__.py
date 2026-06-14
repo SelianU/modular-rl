@@ -2,7 +2,7 @@ from .env_wrapper import BaseEnv, GymEnvWrapper, CustomEnvWrapper
 from .logger import BaseLogger, ConsoleLogger, MatplotlibLogger, CompositeLogger
 from .registry import Registry
 from .builders import BuildContext, ExperimentBuilder, build_trainer
-from .trainer import Trainer
+from .rl_trainer import RLTrainer
 from .optimizers import make_loss, make_optimizer
 from .training_steps import (
     BatchMetrics,
@@ -32,7 +32,7 @@ __all__ = [
     # Config-driven builders
     "BuildContext", "ExperimentBuilder", "build_trainer",
     # Training loop
-    "Trainer",
+    "RLTrainer",
     "make_loss", "make_optimizer",
     "BatchMetrics", "run_evaluation_step", "run_training_step",
     "EpochMetrics", "SupervisedTrainingConfig", "SupervisedTrainingContext",

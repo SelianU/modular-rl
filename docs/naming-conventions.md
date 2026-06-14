@@ -32,8 +32,15 @@ modular_rl/training/
 ├── optimizers.py          # make_loss, make_optimizer
 ├── training_steps.py      # run_training_step, run_evaluation_step
 ├── supervised_training.py # SupervisedTrainingConfig, train_supervised_model
-├── trainer.py             # RL Trainer
+├── rl_trainer.py          # RLTrainer
 └── builders.py            # build_trainer, ExperimentBuilder
+
+modular_rl/algorithms/
+├── agents/                # DQNAgent, SACAgent, PPOAgent, TD3Agent
+├── updates/               # run_dqn_update, run_recurrent_dqn_update
+├── buffers.py             # ReplayBuffer, RolloutBuffer
+├── config.py              # DQNConfig, SACConfig, PPOConfig, TD3Config
+└── models.py              # QNetwork, actor, critic modules
 ```
 
 ## Classes
@@ -47,6 +54,9 @@ modular_rl/training/
   - `*Wrapper`: environment or reward wrappers, such as `GymEnvWrapper`.
   - `*Logger`: logging implementations, such as `ConsoleLogger`.
   - `*Head`: neural network output heads, such as `QHead`.
+  - `*Trainer`: training loops, such as `RLTrainer` or `RewardModelTrainer`.
+  - `*UpdateBatch`: immutable inputs for one algorithm update, such as `DQNUpdateBatch`.
+  - `*UpdateMetrics`: outputs from one algorithm update, such as `DQNUpdateMetrics`.
 
 ## Public Functions
 
@@ -64,7 +74,7 @@ modular_rl/training/
   - `list_*`: return available registry keys.
     - Example: `list_backbones`, `list_optimizers`
   - `run_*`: execute one explicit operation or step.
-    - Example: `run_training_step`, `run_evaluation_step`
+    - Example: `run_training_step`, `run_evaluation_step`, `run_dqn_update`
 
 ## Variables
 

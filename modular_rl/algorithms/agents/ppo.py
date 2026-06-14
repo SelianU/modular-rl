@@ -17,7 +17,7 @@ class PPOAgent(BaseAgent):
     Supports both discrete (CategoricalPolicyHead) and continuous
     (DiagonalGaussianHead) action spaces via the PPOActor interface.
 
-    The agent uses the shared Trainer loop:
+    The agent uses the shared RLTrainer loop:
     - select_action() computes V(s) and log π(a|s) and stores them as pending.
     - observe() flushes the pending data into the RolloutBuffer.
     - update() returns {} until the buffer is full, then performs K epochs of

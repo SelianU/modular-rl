@@ -5,7 +5,7 @@ import gymnasium as gym
 
 
 class BaseEnv(ABC):
-    """Abstract environment interface used by Trainer."""
+    """Abstract environment interface used by RLTrainer."""
 
     @abstractmethod
     def reset(self) -> np.ndarray:

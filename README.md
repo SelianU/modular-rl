@@ -16,17 +16,18 @@ modular_rl/
 │   ├── language_models.py   # MiniGPT and language model helpers
 │   └── sequential.py        # Dict-driven nn.Sequential builder
 │
-├── algorithms/             # RL agents, buffers, configs, and reward learning
+├── algorithms/             # RL agents, updates, buffers, configs, reward learning
 │   ├── agents/             # DQN, SAC, PPO, TD3 agents
+│   ├── updates/            # Explicit gradient update functions
 │   ├── reward/             # Reward model and D-REX-style trainer
 │   ├── buffers.py
 │   ├── config.py
 │   └── models.py
 │
-└── training/               # Trainer, registry, builders, loggers, env wrappers
+└── training/               # RLTrainer, supervised training, builders, utilities
     ├── builders.py
     ├── factory.py
-    ├── trainer.py
+    ├── rl_trainer.py
     ├── supervised_training.py
     ├── training_steps.py
     ├── optimizers.py
@@ -269,10 +270,10 @@ history = train_supervised_model(
 )
 ```
 
-`train_supervised_model` uses these utilities directly. RL agents such as DQN
-also perform loss/backward/optimizer updates internally, so their update methods
-can gradually reuse the same lower-level utilities without changing the public
-RL training API.
+`train_supervised_model` uses these utilities directly. RL agents use separate
+algorithm update functions when the update rule is important enough to read,
+reuse, or test in isolation. For example, `DQNAgent` samples replay data and
+delegates the Bellman update to `run_dqn_update`.
 
 ## RL Training Shortcuts
 
@@ -285,10 +286,10 @@ quick_ppo("CartPole-v1").train()
 quick_td3("Pendulum-v1").train()
 ```
 
-## Config-Driven Trainers
+## Config-Driven RL Trainers
 
 ```python
-from modular_rl.training import build_trainer
+from modular_rl.training import RLTrainer, build_trainer
 
 trainer = build_trainer({
     "algorithm": "dqn",
@@ -298,7 +299,36 @@ trainer = build_trainer({
     "logger": {"type": "console"},
 })
 
+print(isinstance(trainer, RLTrainer))  # True
 trainer.train()
+```
+
+## RL Update Functions
+
+Update functions are useful when you want to study or test the learning rule
+without running a full environment loop.
+
+```python
+from modular_rl.algorithms.updates import DQNUpdateBatch, run_dqn_update
+
+batch = DQNUpdateBatch(
+    states=states,
+    actions=actions,
+    rewards=rewards,
+    next_states=next_states,
+    dones=dones,
+)
+
+metrics = run_dqn_update(
+    q_network=q_network,
+    target_q_network=target_q_network,
+    optimizer=optimizer,
+    loss_fn=loss_fn,
+    batch=batch,
+    gamma=0.99,
+)
+
+print(metrics.loss)
 ```
 
 ## Extending Components

@@ -6,9 +6,9 @@ from .env_wrapper import BaseEnv
 from .logger import BaseLogger, ConsoleLogger
 
 
-class Trainer:
+class RLTrainer:
     """
-    Unified training loop for DQN and SAC agents.
+    Unified reinforcement learning loop for DQN, SAC, PPO, and TD3 agents.
 
     Handles:
     - Episode management and step counting

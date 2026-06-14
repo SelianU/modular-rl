@@ -3,13 +3,18 @@ import random
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Union, Tuple, Optional
-
-import torch.nn.functional as F
+from typing import Union
 
 from .base import BaseAgent
 from ..config import DQNConfig
 from ..buffers import ReplayBuffer, SequenceReplayBuffer, PrioritizedReplayBuffer
+from ..updates import (
+    DQNUpdateBatch,
+    RecurrentDQNUpdateBatch,
+    run_dqn_update,
+    run_recurrent_dqn_update,
+)
+
 
 class DQNAgent(BaseAgent):
     """
@@ -106,37 +111,33 @@ class DQNAgent(BaseAgent):
             weights = None
 
         # Compute online Q-values: Q(s, a)
-        q_values = self.q_network(states)
-        state_action_values = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
-
-        # Compute target Q-values
-        with torch.no_grad():
-            if self.is_double:
-                next_actions = self.q_network(next_states).argmax(dim=1, keepdim=True)
-                max_next_q_values = self.target_network(next_states).gather(1, next_actions).squeeze(1)
-            else:
-                max_next_q_values = self.target_network(next_states).max(dim=1)[0]
-            target_action_values = (
-                rewards.squeeze(1) + self.config.gamma * max_next_q_values * (1.0 - dones.squeeze(1))
+        batch = DQNUpdateBatch(
+            states=states,
+            actions=actions,
+            rewards=rewards,
+            next_states=next_states,
+            dones=dones,
+            importance_weights=weights,
+        )
+        update_metrics = run_dqn_update(
+            q_network=self.q_network,
+            target_q_network=self.target_network,
+            optimizer=self.optimizer,
+            loss_fn=self.criterion,
+            batch=batch,
+            gamma=self.config.gamma,
+            is_double=self.is_double,
+        )
+        if is_per:
+            self.replay_buffer.update_priorities(
+                idxs,
+                update_metrics.td_errors.detach().cpu().numpy(),
             )
 
-        # Compute loss (element-wise for PER, criterion-based otherwise)
-        if is_per:
-            element_loss = F.smooth_l1_loss(state_action_values, target_action_values, reduction="none")
-            loss = (element_loss * weights.squeeze(1)).mean()
-            self.replay_buffer.update_priorities(idxs, element_loss.detach().cpu().numpy())
-        else:
-            loss = self.criterion(state_action_values, target_action_values)
-
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), max_norm=10.0)
-        self.optimizer.step()
-
-        if self.global_step % self.config.target_update_freq == 0:
-            self.target_network.load_state_dict(self.q_network.state_dict())
-
-        return {"loss": loss.item(), "epsilon": self.epsilon}
+        self._maybe_update_target_network()
+        metrics = update_metrics.as_dict()
+        metrics["epsilon"] = self.epsilon
+        return metrics
 
     def _update_recurrent(self) -> dict:
         # Sequence batch size and sequence length
@@ -146,44 +147,30 @@ class DQNAgent(BaseAgent):
             self.config.batch_size, seq_len
         )
         
-        # states shape: (B, L, state_dim)
-        # We forward the entire sequence through the RNN. We start with zero hidden states.
-        q_seq, _ = self.q_network(states)  # (B, L, action_dim)
-        
-        # Gather Q-values for the chosen actions
-        # actions shape: (B, L) -> expand to (B, L, 1)
-        state_action_values = q_seq.gather(2, actions.unsqueeze(-1))  # (B, L, 1)
-        
-        with torch.no_grad():
-            # Get target sequence Q-values
-            next_q_seq, _ = self.target_network(next_states)  # (B, L, action_dim)
-            max_next_q = next_q_seq.max(dim=-1, keepdim=True)[0]  # (B, L, 1)
-            target_action_values = rewards + self.config.gamma * max_next_q * (1.0 - dones)
-            
-        # Compute element-wise loss
-        # criterion must have reduction='none' so we can mask it manually
-        if hasattr(self.criterion, 'reduction') and self.criterion.reduction != 'none':
-            # Create a temporary none-reduction criterion
-            temp_criterion = type(self.criterion)(reduction='none')
-            raw_loss = temp_criterion(state_action_values, target_action_values)
-        else:
-            raw_loss = self.criterion(state_action_values, target_action_values)
-            
-        # Apply sequence mask (ignore padded frames)
-        masked_loss = raw_loss * masks
-        loss = masked_loss.sum() / (masks.sum() + 1e-8)
-        
-        # Optimize online network
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), max_norm=10.0)
-        self.optimizer.step()
-        
-        # Update target network
+        batch = RecurrentDQNUpdateBatch(
+            states=states,
+            actions=actions,
+            rewards=rewards,
+            next_states=next_states,
+            dones=dones,
+            masks=masks,
+        )
+        update_metrics = run_recurrent_dqn_update(
+            q_network=self.q_network,
+            target_q_network=self.target_network,
+            optimizer=self.optimizer,
+            loss_fn=self.criterion,
+            batch=batch,
+            gamma=self.config.gamma,
+        )
+        self._maybe_update_target_network()
+        metrics = update_metrics.as_dict()
+        metrics["epsilon"] = self.epsilon
+        return metrics
+
+    def _maybe_update_target_network(self) -> None:
         if self.global_step % self.config.target_update_freq == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
-            
-        return {"loss": loss.item(), "epsilon": self.epsilon}
 
     def save(self, filepath: str):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)

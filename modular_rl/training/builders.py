@@ -28,7 +28,7 @@ from modular_rl.networks.encoders import MLP, RNN
 
 from .logger import BaseLogger, CompositeLogger
 from .registry import Registry
-from .trainer import Trainer
+from .rl_trainer import RLTrainer
 
 
 @dataclass
@@ -55,12 +55,12 @@ class BuildContext:
 
 
 class ExperimentBuilder:
-    """Build Trainer instances from plain experiment dictionaries."""
+    """Build RLTrainer instances from plain experiment dictionaries."""
 
     def __init__(self, registry: type = Registry):
         self.registry = registry
 
-    def build_trainer(self, spec: Dict[str, Any]) -> Trainer:
+    def build_trainer(self, spec: Dict[str, Any]) -> RLTrainer:
         spec = dict(spec)
         algorithm = spec.get("algorithm", "dqn")
         if algorithm not in self.registry.list_configs():
@@ -80,7 +80,7 @@ class ExperimentBuilder:
             "td3": self._build_td3_agent,
         }
         agent = agent_builders[algorithm](context, spec)
-        return Trainer(agent, environment, algorithm_config, logger, save_path=spec.get("save_path"))
+        return RLTrainer(agent, environment, algorithm_config, logger, save_path=spec.get("save_path"))
 
     def _build_env(self, env_spec: Dict[str, Any], algorithm: str):
         env_spec = dict(env_spec)
@@ -317,5 +317,5 @@ class ExperimentBuilder:
             raise ValueError(f"{algorithm} requires a continuous action space.")
 
 
-def build_trainer(spec: Dict[str, Any]) -> Trainer:
+def build_trainer(spec: Dict[str, Any]) -> RLTrainer:
     return ExperimentBuilder().build_trainer(spec)

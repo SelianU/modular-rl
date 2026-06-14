@@ -21,7 +21,7 @@ class RewardNormWrapper(BaseEnv):
     -----
     env = GymEnvWrapper("Pendulum-v1")
     env = RewardNormWrapper(env, clip=10.0)
-    trainer = Trainer(agent, env, config, ...)
+    trainer = RLTrainer(agent, env, config, ...)
     """
 
     def __init__(self, env: BaseEnv, clip: float = 10.0, epsilon: float = 1e-8):
@@ -94,7 +94,7 @@ class LearnedRewardWrapper(BaseEnv):
     -----
     env = GymEnvWrapper("CartPole-v1")
     env = LearnedRewardWrapper(env, reward_model, device="cpu")
-    trainer = Trainer(agent, env, config)   # agent trains on learned reward
+    trainer = RLTrainer(agent, env, config)   # agent trains on learned reward
 
     Parameters
     ----------

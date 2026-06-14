@@ -1,15 +1,15 @@
 """
 One-liner factory functions for the most common training setups.
 
-These functions preserve the original quick_* API while delegating assembly to
-the config-driven builder. That keeps all experiment construction logic in one
+These helpers return RLTrainer instances and delegate assembly to the
+config-driven builder. That keeps all experiment construction logic in one
 place.
 """
 from typing import List, Optional
 
 from .builders import build_trainer
 from .logger import BaseLogger
-from .trainer import Trainer
+from .rl_trainer import RLTrainer
 
 
 def _model_spec(backbone: str = "mlp", hidden_dims: Optional[List[int]] = None) -> dict:
@@ -50,12 +50,9 @@ def quick_dqn(
     plot_path: Optional[str] = None,
     logger: Optional[BaseLogger] = None,
     **config_kwargs,
-) -> Trainer:
+) -> RLTrainer:
     """
-    Build and return a Trainer for a DQN experiment in one call.
-
-    Parameters are compatible with the original quick_dqn API. Internally this
-    now delegates to build_trainer().
+    Build and return an RLTrainer for a DQN experiment in one call.
     """
     return build_trainer(
         _trainer_spec(
@@ -78,8 +75,8 @@ def quick_sac(
     plot_path: Optional[str] = None,
     logger: Optional[BaseLogger] = None,
     **config_kwargs,
-) -> Trainer:
-    """Build and return a Trainer for a SAC experiment in one call."""
+) -> RLTrainer:
+    """Build and return an RLTrainer for a SAC experiment in one call."""
     return build_trainer(
         _trainer_spec("sac", env_name, hidden_dims, save_path, plot_path, logger, config_kwargs)
     )
@@ -92,8 +89,8 @@ def quick_ppo(
     plot_path: Optional[str] = None,
     logger: Optional[BaseLogger] = None,
     **config_kwargs,
-) -> Trainer:
-    """Build and return a Trainer for a PPO experiment in one call."""
+) -> RLTrainer:
+    """Build and return an RLTrainer for a PPO experiment in one call."""
     return build_trainer(
         _trainer_spec("ppo", env_name, hidden_dims, save_path, plot_path, logger, config_kwargs)
     )
@@ -106,8 +103,8 @@ def quick_td3(
     plot_path: Optional[str] = None,
     logger: Optional[BaseLogger] = None,
     **config_kwargs,
-) -> Trainer:
-    """Build and return a Trainer for a TD3 experiment in one call."""
+) -> RLTrainer:
+    """Build and return an RLTrainer for a TD3 experiment in one call."""
     return build_trainer(
         _trainer_spec("td3", env_name, hidden_dims, save_path, plot_path, logger, config_kwargs)
     )
