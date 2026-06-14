@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 import torch.nn as nn
 
-from modular_rl.networks import (
+from lattice.networks import (
     CategoricalPolicyHead,
     DeterministicPolicyHead,
     DiagonalGaussianHead,
@@ -12,7 +12,7 @@ from modular_rl.networks import (
     QHead,
     ValueHead,
 )
-from modular_rl.networks.encoders import MLP, RNN
+from lattice.networks.encoders import MLP, RNN
 
 from .agents import DQNAgent, PPOAgent, SACAgent, TD3Agent
 from .models import QNetwork, PPOActor, PPOCritic, SACActor, TD3Actor, TD3Critic
@@ -36,7 +36,7 @@ class AgentBuilder:
 
     def __init__(self, registry=None):
         if registry is None:
-            from modular_rl.training import Registry
+            from lattice.training import Registry
 
             registry = Registry
         self.registry = registry

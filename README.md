@@ -1,13 +1,14 @@
-# modular-rl
+# lattice
 
-`modular-rl` is a compact PyTorch-based reinforcement learning and neural
-network library. The repository now keeps only the core package code under
-`modular_rl/` plus the root files needed for installation and packaging.
+`lattice` is a compact PyTorch-based toolkit for building neural networks,
+training supervised models, and assembling reinforcement learning agents. The
+repository keeps only the core package code under `lattice/` plus the root
+files needed for installation and packaging.
 
 ## Structure
 
 ```text
-modular_rl/
+lattice/
 ├── networks/               # Neural network builders and reusable blocks
 │   ├── encoders/           # MLP, CNN, RNN, Transformer backbones
 │   ├── heads.py            # Q, policy, critic, and value heads
@@ -77,7 +78,7 @@ Use these when you want to create a model quickly without manually wiring every
 
 ```python
 import torch
-from modular_rl.networks import (
+from lattice.networks import (
     make_cnn_mlp,
     make_mlp,
     make_mlp_classifier,
@@ -124,7 +125,7 @@ print(transformer_output.shape)  # torch.Size([32, 28, 10])
 Use `build_model` when you want config-driven construction.
 
 ```python
-from modular_rl.networks import build_model
+from lattice.networks import build_model
 
 model = build_model({
     "type": "cnn_mlp",
@@ -162,8 +163,8 @@ already have `(inputs, targets)` batches.
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from modular_rl.networks import make_mlp
-from modular_rl.training import SupervisedTrainingConfig, train_supervised_model
+from lattice.networks import make_mlp
+from lattice.training import SupervisedTrainingConfig, train_supervised_model
 
 inputs = torch.tensor([
     [0.0, 0.0],
@@ -194,8 +195,8 @@ For MNIST-style image data with an MLP, use `make_mlp_classifier` so the input
 is flattened inside the model:
 
 ```python
-from modular_rl.networks import make_mlp_classifier
-from modular_rl.training import SupervisedTrainingConfig, train_supervised_model
+from lattice.networks import make_mlp_classifier
+from lattice.training import SupervisedTrainingConfig, train_supervised_model
 
 model = make_mlp_classifier(
     input_shape=(1, 28, 28),
@@ -221,7 +222,7 @@ model(inputs) -> loss(outputs, targets) -> backward() -> optimizer.step()
 For that reason, the package exposes small reusable training utilities too:
 
 ```python
-from modular_rl.training import make_loss, make_optimizer, run_training_step
+from lattice.training import make_loss, make_optimizer, run_training_step
 
 loss_fn = make_loss("smooth_l1")
 optimizer = make_optimizer("adam", model.parameters(), learning_rate=1e-3)
@@ -233,7 +234,7 @@ step receives the model, the raw batch, and a context object containing the
 loss, optimizer, device, and current epoch/batch index.
 
 ```python
-from modular_rl.training import BatchMetrics
+from lattice.training import BatchMetrics
 
 def run_custom_training_step(model, batch, context):
     inputs, targets = batch
@@ -280,7 +281,7 @@ delegates the Bellman update to `run_dqn_update`.
 ## RL Training Shortcuts
 
 ```python
-from modular_rl.training import quick_dqn, quick_sac, quick_ppo, quick_td3
+from lattice.training import quick_dqn, quick_sac, quick_ppo, quick_td3
 
 quick_dqn("CartPole-v1").train()
 quick_sac("Pendulum-v1", total_timesteps=50000).train()
@@ -295,7 +296,7 @@ the agent only receives states, returns actions, and learns from transitions
 that you feed back into it.
 
 ```python
-from modular_rl.algorithms import build_agent
+from lattice.algorithms import build_agent
 
 agent = build_agent({
     "algorithm": "dqn",
@@ -325,7 +326,7 @@ for step in range(30000):
 For a small helper around this pattern, use `run_interaction_step`:
 
 ```python
-from modular_rl.training import run_interaction_step
+from lattice.training import run_interaction_step
 
 result = run_interaction_step(
     agent=agent,
@@ -342,7 +343,7 @@ print(result.action, result.reward, result.metrics)
 Use `build_trainer` when you want the library to own the environment loop too.
 
 ```python
-from modular_rl.training import RLTrainer, build_trainer
+from lattice.training import RLTrainer, build_trainer
 
 trainer = build_trainer({
     "algorithm": "dqn",
@@ -362,7 +363,7 @@ Update functions are useful when you want to study or test the learning rule
 without running a full environment loop.
 
 ```python
-from modular_rl.algorithms.updates import DQNUpdateBatch, run_dqn_update
+from lattice.algorithms.updates import DQNUpdateBatch, run_dqn_update
 
 batch = DQNUpdateBatch(
     states=states,
@@ -390,7 +391,7 @@ The registry lets you add project-specific components without changing the core
 library files.
 
 ```python
-from modular_rl.training import Registry
+from lattice.training import Registry
 
 Registry.register_backbone("my_encoder", MyEncoder)
 Registry.register_logger("my_logger", MyLogger)

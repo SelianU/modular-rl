@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 from typing import Optional, Tuple, Union
 
-from modular_rl.networks import (
+from lattice.networks import (
     QHead, GaussianPolicyHead, DoubleQCriticHead,
     CategoricalPolicyHead, DiagonalGaussianHead, DeterministicPolicyHead, ValueHead,
 )
-from modular_rl.networks.encoders import RNN, Transformer
+from lattice.networks.encoders import RNN, Transformer
 
 
 # ══════════════════════════════════════════════════════════════════════════════

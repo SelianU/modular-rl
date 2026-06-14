@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional
 
-from modular_rl.algorithms import (
+from lattice.algorithms import (
     AgentBuildContext,
     build_agent,
 )

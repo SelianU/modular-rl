@@ -22,13 +22,13 @@ the reader to inspect the implementation.
 Current core module layout:
 
 ```text
-modular_rl/networks/
+lattice/networks/
 ├── builders.py            # make_mlp, make_mlp_classifier, make_cnn_mlp, build_model
 ├── sequence_builders.py   # make_rnn, make_transformer
 ├── language_models.py     # MiniGPT, make_mini_gpt
 └── sequential.py          # build_sequential_model
 
-modular_rl/training/
+lattice/training/
 ├── optimizers.py          # make_loss, make_optimizer
 ├── interaction.py         # run_interaction_step
 ├── training_steps.py      # run_training_step, run_evaluation_step
@@ -36,7 +36,7 @@ modular_rl/training/
 ├── rl_trainer.py          # RLTrainer
 └── builders.py            # build_trainer, ExperimentBuilder
 
-modular_rl/algorithms/
+lattice/algorithms/
 ├── builders.py            # AgentBuildContext, AgentBuilder, build_agent
 ├── agents/                # DQNAgent, SACAgent, PPOAgent, TD3Agent
 ├── updates/               # run_dqn_update, run_recurrent_dqn_update

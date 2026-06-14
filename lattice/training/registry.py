@@ -3,19 +3,19 @@ from typing import Any, Dict, Type
 import torch
 import torch.nn as nn
 
-from modular_rl.networks.encoders import MLP, CNN, RNN, Transformer
-from modular_rl.networks import (
+from lattice.networks.encoders import MLP, CNN, RNN, Transformer
+from lattice.networks import (
     QHead, DuelingQHead,
     GaussianPolicyHead, DiagonalGaussianHead, DeterministicPolicyHead,
     CategoricalPolicyHead,
     DoubleQCriticHead, ValueHead,
 )
-from modular_rl.algorithms.config import DQNConfig, SACConfig, PPOConfig, TD3Config
-from modular_rl.algorithms.buffers import ReplayBuffer, SequenceReplayBuffer, PrioritizedReplayBuffer, RolloutBuffer
-from modular_rl.algorithms.models import QNetwork, SACActor, SACCritic
-from modular_rl.algorithms.agents import DQNAgent, SACAgent, PPOAgent, TD3Agent
-from modular_rl.training.env_wrapper import GymEnvWrapper, CustomEnvWrapper
-from modular_rl.training.logger import ConsoleLogger, MatplotlibLogger, CompositeLogger
+from lattice.algorithms.config import DQNConfig, SACConfig, PPOConfig, TD3Config
+from lattice.algorithms.buffers import ReplayBuffer, SequenceReplayBuffer, PrioritizedReplayBuffer, RolloutBuffer
+from lattice.algorithms.models import QNetwork, SACActor, SACCritic
+from lattice.algorithms.agents import DQNAgent, SACAgent, PPOAgent, TD3Agent
+from lattice.training.env_wrapper import GymEnvWrapper, CustomEnvWrapper
+from lattice.training.logger import ConsoleLogger, MatplotlibLogger, CompositeLogger
 
 
 class Registry:

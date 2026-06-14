@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "modular-rl"
+name = "lattice"
 version = "0.1.0"
-description = "Modular Reinforcement Learning & Deep Learning Library"
+description = "PyTorch toolkit for neural networks, supervised training, and reinforcement learning"
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
@@ -16,4 +16,4 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["modular_rl*"]
+include = ["lattice*"]
