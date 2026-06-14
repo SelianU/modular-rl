@@ -20,6 +20,7 @@ modular_rl/
 │   ├── agents/             # DQN, SAC, PPO, TD3 agents
 │   ├── updates/            # Explicit gradient update functions
 │   ├── reward/             # Reward model and D-REX-style trainer
+│   ├── builders.py         # build_agent for environment-free agent construction
 │   ├── buffers.py
 │   ├── config.py
 │   └── models.py
@@ -28,6 +29,7 @@ modular_rl/
     ├── builders.py
     ├── factory.py
     ├── rl_trainer.py
+    ├── interaction.py
     ├── supervised_training.py
     ├── training_steps.py
     ├── optimizers.py
@@ -286,7 +288,58 @@ quick_ppo("CartPole-v1").train()
 quick_td3("Pendulum-v1").train()
 ```
 
+## Environment-Free RL Agents
+
+Use `build_agent` when your environment lives outside the library. In this mode
+the agent only receives states, returns actions, and learns from transitions
+that you feed back into it.
+
+```python
+from modular_rl.algorithms import build_agent
+
+agent = build_agent({
+    "algorithm": "dqn",
+    "state_dim": 4,
+    "action_dim": 2,
+    "model": {"backbone": {"type": "mlp", "hidden_dims": [128, 128]}},
+    "config": {
+        "total_timesteps": 30000,
+        "learning_starts": 1000,
+    },
+})
+
+state = get_initial_state()
+
+for step in range(30000):
+    action = agent.select_action(state)
+
+    # Your code owns the outside world.
+    next_state, reward, done = external_system_step(action)
+
+    agent.observe(state, action, reward, next_state, done)
+    metrics = agent.update()
+
+    state = get_initial_state() if done else next_state
+```
+
+For a small helper around this pattern, use `run_interaction_step`:
+
+```python
+from modular_rl.training import run_interaction_step
+
+result = run_interaction_step(
+    agent=agent,
+    state=state,
+    transition_function=external_system_step,
+)
+
+state = get_initial_state() if result.done else result.next_state
+print(result.action, result.reward, result.metrics)
+```
+
 ## Config-Driven RL Trainers
+
+Use `build_trainer` when you want the library to own the environment loop too.
 
 ```python
 from modular_rl.training import RLTrainer, build_trainer

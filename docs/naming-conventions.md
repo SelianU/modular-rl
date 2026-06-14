@@ -30,12 +30,14 @@ modular_rl/networks/
 
 modular_rl/training/
 ├── optimizers.py          # make_loss, make_optimizer
+├── interaction.py         # run_interaction_step
 ├── training_steps.py      # run_training_step, run_evaluation_step
 ├── supervised_training.py # SupervisedTrainingConfig, train_supervised_model
 ├── rl_trainer.py          # RLTrainer
 └── builders.py            # build_trainer, ExperimentBuilder
 
 modular_rl/algorithms/
+├── builders.py            # AgentBuildContext, AgentBuilder, build_agent
 ├── agents/                # DQNAgent, SACAgent, PPOAgent, TD3Agent
 ├── updates/               # run_dqn_update, run_recurrent_dqn_update
 ├── buffers.py             # ReplayBuffer, RolloutBuffer
@@ -55,6 +57,8 @@ modular_rl/algorithms/
   - `*Logger`: logging implementations, such as `ConsoleLogger`.
   - `*Head`: neural network output heads, such as `QHead`.
   - `*Trainer`: training loops, such as `RLTrainer` or `RewardModelTrainer`.
+  - `*Builder`: object assembly helpers, such as `AgentBuilder` or `ExperimentBuilder`.
+  - `*BuildContext`: explicit build-time shape and space metadata, such as `AgentBuildContext`.
   - `*UpdateBatch`: immutable inputs for one algorithm update, such as `DQNUpdateBatch`.
   - `*UpdateMetrics`: outputs from one algorithm update, such as `DQNUpdateMetrics`.
 
@@ -66,7 +70,7 @@ modular_rl/algorithms/
   - `make_*`: beginner-friendly model constructors.
     - Example: `make_mlp`, `make_cnn_mlp`
   - `build_*`: assemble configurable components.
-    - Example: `build_model`, `build_trainer`, `build_q_network`
+    - Example: `build_model`, `build_agent`, `build_trainer`, `build_q_network`
   - `quick_*`: shortcut helpers for common training setups.
     - Example: `quick_dqn`, `quick_sac`
   - `register_*`: add a component to `Registry`.
@@ -74,7 +78,7 @@ modular_rl/algorithms/
   - `list_*`: return available registry keys.
     - Example: `list_backbones`, `list_optimizers`
   - `run_*`: execute one explicit operation or step.
-    - Example: `run_training_step`, `run_evaluation_step`, `run_dqn_update`
+    - Example: `run_training_step`, `run_interaction_step`, `run_dqn_update`
 
 ## Variables
 
