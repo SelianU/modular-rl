@@ -11,6 +11,7 @@ from .simple import (
     make_cnn_mlp,
     make_mini_gpt,
     make_mlp,
+    make_mlp_classifier,
     make_rnn,
     make_transformer,
 )

@@ -71,12 +71,21 @@ Use these when you want to create a model quickly without manually wiring every
 
 ```python
 import torch
-from modular_rl.networks import make_mlp, make_cnn_mlp, make_rnn, make_transformer
+from modular_rl.networks import make_mlp, make_mlp_classifier, make_cnn_mlp, make_rnn, make_transformer
 
 # n-dimensional vector -> m-dimensional output
 mlp = make_mlp(input_dim=10, output_dim=3, hidden_dims=[64, 64])
 vector_output = mlp(torch.randn(32, 10))
 print(vector_output.shape)  # torch.Size([32, 3])
+
+# shaped input -> flatten -> MLP classifier
+mlp_classifier = make_mlp_classifier(
+    input_shape=(1, 28, 28),
+    output_dim=10,
+    hidden_dims=[128, 128],
+)
+classifier_output = mlp_classifier(torch.randn(32, 1, 28, 28))
+print(classifier_output.shape)  # torch.Size([32, 10])
 
 # image -> two 3x3 conv layers -> MLP -> k-dimensional output
 cnn_mlp = make_cnn_mlp(
@@ -142,7 +151,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 from modular_rl.networks import make_mlp
-from modular_rl.training import train_supervised_model
+from modular_rl.training import SupervisedTrainingConfig, train_supervised_model
 
 inputs = torch.tensor([
     [0.0, 0.0],
@@ -154,16 +163,41 @@ targets = torch.tensor([0, 1, 1, 0])
 train_loader = DataLoader(TensorDataset(inputs, targets), batch_size=4, shuffle=True)
 
 model = make_mlp(input_dim=2, output_dim=2, hidden_dims=[16, 16])
-history = train_supervised_model(
-    model=model,
-    train_loader=train_loader,
+config = SupervisedTrainingConfig(
     loss="cross_entropy",
     optimizer="adam",
     learning_rate=0.05,
     epochs=100,
 )
+history = train_supervised_model(
+    model=model,
+    train_loader=train_loader,
+    config=config,
+)
 
 print(history.as_dict())
+```
+
+For MNIST-style image data with an MLP, use `make_mlp_classifier` so the input
+is flattened inside the model:
+
+```python
+from modular_rl.networks import make_mlp_classifier
+from modular_rl.training import SupervisedTrainingConfig, train_supervised_model
+
+model = make_mlp_classifier(
+    input_shape=(1, 28, 28),
+    output_dim=10,
+    hidden_dims=[128, 128],
+)
+config = SupervisedTrainingConfig(epochs=10, learning_rate=1e-3)
+
+history = train_supervised_model(
+    model=model,
+    train_loader=train_loader,
+    validation_loader=validation_loader,
+    config=config,
+)
 ```
 
 Under the hood, supervised learning and RL updates share the same basic pieces:
@@ -180,6 +214,50 @@ from modular_rl.training import make_loss, make_optimizer, training_step
 loss_fn = make_loss("smooth_l1")
 optimizer = make_optimizer("adam", model.parameters(), learning_rate=1e-3)
 metrics = training_step(model, inputs, targets, loss_fn, optimizer)
+```
+
+When the default batch update is not enough, pass a custom step function. The
+step receives the model, the raw batch, and a context object containing the
+loss, optimizer, device, and current epoch/batch index.
+
+```python
+from modular_rl.training import BatchMetrics
+
+def custom_training_step(model, batch, context):
+    inputs, targets = batch
+    inputs = inputs.to(context.device)
+    targets = targets.to(context.device)
+
+    outputs = model(inputs)
+    loss = context.loss_fn(outputs, targets)
+
+    context.optimizer.zero_grad()
+    loss.backward()
+    context.optimizer.step()
+
+    return BatchMetrics(loss=loss.item(), num_samples=targets.shape[0])
+
+history = train_supervised_model(
+    model=model,
+    train_loader=train_loader,
+    config=config,
+    training_step_fn=custom_training_step,
+)
+```
+
+Callbacks run after each epoch and can return `True` to stop training:
+
+```python
+def stop_when_good_enough(metrics, history, model):
+    return metrics.validation_accuracy is not None and metrics.validation_accuracy > 0.95
+
+history = train_supervised_model(
+    model=model,
+    train_loader=train_loader,
+    validation_loader=validation_loader,
+    config=config,
+    callbacks=[stop_when_good_enough],
+)
 ```
 
 `train_supervised_model` uses these utilities directly. RL agents such as DQN

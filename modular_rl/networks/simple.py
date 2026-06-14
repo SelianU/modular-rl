@@ -99,6 +99,31 @@ def make_mlp(
     return nn.Sequential(encoder, nn.Linear(encoder.output_dim, output_dim))
 
 
+def make_mlp_classifier(
+    input_shape: Tuple[int, ...],
+    output_dim: int,
+    hidden_dims: List[int] = None,
+    flatten_input: bool = True,
+    activation: type = nn.ReLU,
+) -> nn.Sequential:
+    """
+    Build an MLP classifier for shaped inputs such as images.
+
+    This is a beginner-friendly wrapper for cases like MNIST, where data arrives
+    as (batch, channels, height, width) but a plain MLP expects vectors.
+    """
+    input_dim = _num_features(input_shape)
+    model = make_mlp(
+        input_dim=input_dim,
+        output_dim=output_dim,
+        hidden_dims=hidden_dims,
+        activation=activation,
+    )
+    if flatten_input:
+        return nn.Sequential(nn.Flatten(), model)
+    return model
+
+
 def make_cnn_mlp(
     input_shape: Tuple[int, int, int],
     output_dim: int,
@@ -297,6 +322,8 @@ def build_model(config: Dict) -> nn.Module:
 
     if model_type == "mlp":
         return make_mlp(**config)
+    if model_type == "mlp_classifier":
+        return make_mlp_classifier(**config)
     if model_type == "cnn_mlp":
         return make_cnn_mlp(**config)
     if model_type == "rnn":
@@ -309,7 +336,7 @@ def build_model(config: Dict) -> nn.Module:
         return build_sequential_model(**config)
 
     raise ValueError("Unknown model type "
-                     f"'{model_type}'. Available: ['mlp', 'cnn_mlp', 'rnn', 'transformer', 'mini_gpt', 'sequential']")
+                     f"'{model_type}'. Available: ['mlp', 'mlp_classifier', 'cnn_mlp', 'rnn', 'transformer', 'mini_gpt', 'sequential']")
 
 
 def _num_features(shape: Tuple[int, ...]) -> int:
