@@ -5,13 +5,12 @@ from .heads import (
     CategoricalPolicyHead,
     DoubleQCriticHead, ValueHead,
 )
-from .simple import (
+from .builders import (
     build_model,
-    build_sequential_model,
     make_cnn_mlp,
-    make_mini_gpt,
     make_mlp,
     make_mlp_classifier,
-    make_rnn,
-    make_transformer,
 )
+from .language_models import MiniGPT, make_mini_gpt
+from .sequence_builders import make_rnn, make_transformer
+from .sequential import build_sequential_model

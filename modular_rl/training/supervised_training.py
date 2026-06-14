@@ -4,8 +4,8 @@ from typing import Any, Callable, Dict, List, Optional
 import torch
 import torch.nn as nn
 
-from .optim import LossLike, OptimizerLike, make_loss, make_optimizer
-from .steps import BatchMetrics, evaluation_step, training_step
+from .optimizers import LossLike, OptimizerLike, make_loss, make_optimizer
+from .training_steps import BatchMetrics, run_evaluation_step, run_training_step
 
 
 @dataclass(frozen=True)
@@ -63,7 +63,8 @@ class SupervisedTrainingHistory:
         }
 
 
-TrainingStepFn = Callable[[nn.Module, Any, SupervisedTrainingContext], BatchMetrics]
+TrainingStepFunction = Callable[[nn.Module, Any, SupervisedTrainingContext], BatchMetrics]
+TrainingStepFn = TrainingStepFunction
 TrainingCallback = Callable[[EpochMetrics, SupervisedTrainingHistory, nn.Module], Optional[bool]]
 
 
@@ -81,7 +82,7 @@ def train_supervised_model(
     gradient_clip_norm: Optional[float] = None,
     log_interval: int = 1,
     callbacks: Optional[List[TrainingCallback]] = None,
-    training_step_fn: Optional[TrainingStepFn] = None,
+    training_step_fn: Optional[TrainingStepFunction] = None,
     **optimizer_kwargs,
 ) -> SupervisedTrainingHistory:
     """
@@ -174,7 +175,7 @@ def evaluate_supervised_model(
     model = model.to(device)
     loss_fn = make_loss(loss)
     batch_metrics = [
-        evaluation_step(
+        run_evaluation_step(
             model=model,
             inputs=inputs,
             targets=targets,
@@ -192,7 +193,7 @@ def _run_training_epoch(
     data_loader,
     context: SupervisedTrainingContext,
     epoch: int,
-    training_step_fn: Optional[TrainingStepFn],
+    training_step_fn: Optional[TrainingStepFunction],
 ) -> BatchMetrics:
     batch_metrics = []
     for batch_index, batch in enumerate(data_loader, start=1):
@@ -202,7 +203,7 @@ def _run_training_epoch(
             metrics = training_step_fn(model, batch, context)
         else:
             inputs, targets = batch
-            metrics = training_step(
+            metrics = run_training_step(
                 model=model,
                 inputs=inputs,
                 targets=targets,

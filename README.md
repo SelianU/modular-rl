@@ -11,7 +11,11 @@ modular_rl/
 ├── networks/               # Neural network builders and reusable blocks
 │   ├── encoders/           # MLP, CNN, RNN, Transformer backbones
 │   ├── heads.py            # Q, policy, critic, and value heads
-│   └── simple.py           # Beginner-friendly model constructors
+│   ├── builders.py         # MLP/CNN model builders and build_model
+│   ├── sequence_builders.py # RNN/Transformer beginner builders
+│   ├── language_models.py  # MiniGPT and language model helpers
+│   ├── sequential.py       # Dict-driven nn.Sequential builder
+│   └── simple.py           # Compatibility exports
 │
 ├── algorithms/             # RL agents, buffers, configs, and reward learning
 │   ├── agents/             # DQN, SAC, PPO, TD3 agents
@@ -24,9 +28,9 @@ modular_rl/
     ├── builders.py
     ├── factory.py
     ├── trainer.py
-    ├── supervised.py
-    ├── steps.py
-    ├── optim.py
+    ├── supervised_training.py
+    ├── training_steps.py
+    ├── optimizers.py
     ├── registry.py
     ├── logger.py
     ├── env_wrapper.py
@@ -209,11 +213,11 @@ model(inputs) -> loss(outputs, targets) -> backward() -> optimizer.step()
 For that reason, the package exposes small reusable training utilities too:
 
 ```python
-from modular_rl.training import make_loss, make_optimizer, training_step
+from modular_rl.training import make_loss, make_optimizer, run_training_step
 
 loss_fn = make_loss("smooth_l1")
 optimizer = make_optimizer("adam", model.parameters(), learning_rate=1e-3)
-metrics = training_step(model, inputs, targets, loss_fn, optimizer)
+metrics = run_training_step(model, inputs, targets, loss_fn, optimizer)
 ```
 
 When the default batch update is not enough, pass a custom step function. The
