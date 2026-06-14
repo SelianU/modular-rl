@@ -454,6 +454,37 @@ Run the learning checks only:
 ./scripts/run_learning_tests.sh
 ```
 
+Run parameterized learning experiments with detailed logs:
+
+```bash
+./scripts/run_learning_experiments.sh --quick
+./scripts/run_learning_experiments.sh --model mlp --quick
+./scripts/run_learning_experiments.sh --model cnn --quick
+./scripts/run_learning_experiments.sh --model rnn --quick
+./scripts/run_learning_experiments.sh --model transformer --quick
+./scripts/run_learning_experiments.sh --model mini_gpt --quick
+```
+
+The experiment runner is separate from pytest. It is meant for watching how
+different model settings learn on small but non-trivial tasks:
+
+- MLP: two-moons-like nonlinear classification.
+- CNN + MLP: image bar-orientation classification.
+- RNN: first/last token sequence classification.
+- Transformer: marked-position sequence classification.
+- MiniGPT: cyclic next-token prediction.
+
+Each run prints the model, task, parameters, step losses, final loss, best loss,
+loss ratio, final accuracy, and elapsed time. Example:
+
+```text
+=== MLP | two_moons_like_classification ===
+params={'hidden_dims': [8], 'learning_rate': 0.03, 'steps': 120, 'seed': 10}
+step=0001/0120 loss=0.6880
+step=0025/0120 loss=0.4321
+result initial_loss=0.6880 final_loss=0.0053 best_loss=0.0053 loss_ratio=0.0077 final_accuracy=100.00% elapsed_seconds=0.10
+```
+
 Generated artifacts such as `.venv/`, `.pytest_cache/`, `checkpoints/`, training
 plots, logs, and coverage files are ignored by `.gitignore`.
 
