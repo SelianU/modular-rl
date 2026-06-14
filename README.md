@@ -24,6 +24,9 @@ modular_rl/
     ├── builders.py
     ├── factory.py
     ├── trainer.py
+    ├── supervised.py
+    ├── steps.py
+    ├── optim.py
     ├── registry.py
     ├── logger.py
     ├── env_wrapper.py
@@ -127,6 +130,62 @@ model = build_model({
     ],
 })
 ```
+
+## Supervised Training
+
+The same model builders can be trained with a beginner-friendly supervised
+training loop. This is useful for classification or regression tasks where you
+already have `(inputs, targets)` batches.
+
+```python
+import torch
+from torch.utils.data import DataLoader, TensorDataset
+
+from modular_rl.networks import make_mlp
+from modular_rl.training import train_supervised_model
+
+inputs = torch.tensor([
+    [0.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [1.0, 1.0],
+])
+targets = torch.tensor([0, 1, 1, 0])
+train_loader = DataLoader(TensorDataset(inputs, targets), batch_size=4, shuffle=True)
+
+model = make_mlp(input_dim=2, output_dim=2, hidden_dims=[16, 16])
+history = train_supervised_model(
+    model=model,
+    train_loader=train_loader,
+    loss="cross_entropy",
+    optimizer="adam",
+    learning_rate=0.05,
+    epochs=100,
+)
+
+print(history.as_dict())
+```
+
+Under the hood, supervised learning and RL updates share the same basic pieces:
+
+```text
+model(inputs) -> loss(outputs, targets) -> backward() -> optimizer.step()
+```
+
+For that reason, the package exposes small reusable training utilities too:
+
+```python
+from modular_rl.training import make_loss, make_optimizer, training_step
+
+loss_fn = make_loss("smooth_l1")
+optimizer = make_optimizer("adam", model.parameters(), learning_rate=1e-3)
+metrics = training_step(model, inputs, targets, loss_fn, optimizer)
+```
+
+`train_supervised_model` uses these utilities directly. RL agents such as DQN
+also perform loss/backward/optimizer updates internally, so their update methods
+can gradually reuse the same lower-level utilities without changing the public
+RL training API.
 
 ## RL Training Shortcuts
 

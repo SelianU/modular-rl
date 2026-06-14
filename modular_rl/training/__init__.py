@@ -3,6 +3,14 @@ from .logger import BaseLogger, ConsoleLogger, MatplotlibLogger, CompositeLogger
 from .registry import Registry
 from .builders import BuildContext, ExperimentBuilder, build_trainer
 from .trainer import Trainer
+from .optim import make_loss, make_optimizer
+from .steps import BatchMetrics, evaluation_step, training_step
+from .supervised import (
+    EpochMetrics,
+    SupervisedTrainingHistory,
+    evaluate_supervised_model,
+    train_supervised_model,
+)
 from .wrappers import RewardNormWrapper, LearnedRewardWrapper
 from .factory import quick_dqn, quick_sac, quick_ppo, quick_td3
 
@@ -17,6 +25,10 @@ __all__ = [
     "BuildContext", "ExperimentBuilder", "build_trainer",
     # Training loop
     "Trainer",
+    "make_loss", "make_optimizer",
+    "BatchMetrics", "evaluation_step", "training_step",
+    "EpochMetrics", "SupervisedTrainingHistory",
+    "evaluate_supervised_model", "train_supervised_model",
     # Wrappers
     "RewardNormWrapper", "LearnedRewardWrapper",
     # Factories
