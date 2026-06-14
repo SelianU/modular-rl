@@ -1,5 +1,4 @@
 torch>=2.0.0
-torchvision>=0.15.0
 gymnasium[classic-control]>=0.28.1
 numpy>=1.22.0
 matplotlib>=3.5.0
