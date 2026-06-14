@@ -23,7 +23,15 @@ def _train_classifier(model, inputs, targets, steps=120, learning_rate=0.03):
         optimizer.step()
         losses.append(loss.item())
 
-    return losses
+    with torch.no_grad():
+        predictions = model(inputs).argmax(dim=-1)
+        accuracy = (predictions == targets).float().mean().item()
+
+    return {
+        "losses": losses,
+        "predictions": predictions,
+        "accuracy": accuracy,
+    }
 
 
 def _train_sequence_classifier(model, inputs, targets, steps=160, learning_rate=0.02):
@@ -39,7 +47,26 @@ def _train_sequence_classifier(model, inputs, targets, steps=160, learning_rate=
         optimizer.step()
         losses.append(loss.item())
 
-    return losses
+    with torch.no_grad():
+        predictions = model(inputs)[:, -1, :].argmax(dim=-1)
+        accuracy = (predictions == targets).float().mean().item()
+
+    return {
+        "losses": losses,
+        "predictions": predictions,
+        "accuracy": accuracy,
+    }
+
+
+def _print_learning_summary(name, metrics):
+    losses = metrics["losses"]
+    print(
+        f"\n[{name}] "
+        f"initial_loss={losses[0]:.4f} "
+        f"final_loss={losses[-1]:.4f} "
+        f"loss_ratio={losses[-1] / losses[0]:.4f} "
+        f"final_accuracy={metrics['accuracy']:.2%}"
+    )
 
 
 def test_mlp_learns_xor_classification():
@@ -55,11 +82,12 @@ def test_mlp_learns_xor_classification():
     targets = torch.tensor([0, 1, 1, 0])
     model = make_mlp(input_dim=2, output_dim=2, hidden_dims=[16, 16])
 
-    losses = _train_classifier(model, inputs, targets, steps=200, learning_rate=0.05)
-    predictions = model(inputs).argmax(dim=-1)
+    metrics = _train_classifier(model, inputs, targets, steps=200, learning_rate=0.05)
+    _print_learning_summary("MLP XOR", metrics)
 
-    assert losses[-1] < losses[0] * 0.2
-    assert torch.equal(predictions, targets)
+    assert metrics["losses"][-1] < metrics["losses"][0] * 0.2
+    assert metrics["accuracy"] == 1.0
+    assert torch.equal(metrics["predictions"], targets)
 
 
 def test_cnn_mlp_learns_image_corner_classification():
@@ -78,11 +106,12 @@ def test_cnn_mlp_learns_image_corner_classification():
         cnn_feature_dim=16,
     )
 
-    losses = _train_classifier(model, images, targets, steps=160, learning_rate=0.03)
-    predictions = model(images).argmax(dim=-1)
+    metrics = _train_classifier(model, images, targets, steps=160, learning_rate=0.03)
+    _print_learning_summary("CNN corner classification", metrics)
 
-    assert losses[-1] < losses[0] * 0.25
-    assert torch.equal(predictions, targets)
+    assert metrics["losses"][-1] < metrics["losses"][0] * 0.25
+    assert metrics["accuracy"] == 1.0
+    assert torch.equal(metrics["predictions"], targets)
 
 
 def test_rnn_learns_order_dependent_sequence_classification():
@@ -100,11 +129,12 @@ def test_rnn_learns_order_dependent_sequence_classification():
     targets = torch.tensor([0, 1, 1, 1, 0, 1])
     model = make_rnn(input_dim=1, output_dim=2, hidden_dims=[8], rnn_hidden_dim=8)
 
-    losses = _train_sequence_classifier(model, inputs, targets, steps=180, learning_rate=0.03)
-    predictions = model(inputs)[:, -1, :].argmax(dim=-1)
+    metrics = _train_sequence_classifier(model, inputs, targets, steps=180, learning_rate=0.03)
+    _print_learning_summary("RNN order-dependent sequence", metrics)
 
-    assert losses[-1] < losses[0] * 0.35
-    assert torch.equal(predictions, targets)
+    assert metrics["losses"][-1] < metrics["losses"][0] * 0.35
+    assert metrics["accuracy"] == 1.0
+    assert torch.equal(metrics["predictions"], targets)
 
 
 def test_transformer_learns_sequence_position_classification():
@@ -129,11 +159,12 @@ def test_transformer_learns_sequence_position_classification():
         dropout=0.0,
     )
 
-    losses = _train_sequence_classifier(model, inputs, targets, steps=180, learning_rate=0.02)
-    predictions = model(inputs)[:, -1, :].argmax(dim=-1)
+    metrics = _train_sequence_classifier(model, inputs, targets, steps=180, learning_rate=0.02)
+    _print_learning_summary("Transformer position classification", metrics)
 
-    assert losses[-1] < losses[0] * 0.35
-    assert torch.equal(predictions, targets)
+    assert metrics["losses"][-1] < metrics["losses"][0] * 0.35
+    assert metrics["accuracy"] == 1.0
+    assert torch.equal(metrics["predictions"], targets)
 
 
 def test_mini_gpt_learns_repeating_token_pattern():
@@ -176,7 +207,18 @@ def test_mini_gpt_learns_repeating_token_pattern():
         optimizer.step()
         losses.append(loss.item())
 
-    predictions = model(input_ids).argmax(dim=-1)
+    with torch.no_grad():
+        predictions = model(input_ids).argmax(dim=-1)
+        accuracy = (predictions == next_token_targets).float().mean().item()
+
+    print(
+        "\n[MiniGPT repeating token pattern] "
+        f"initial_loss={losses[0]:.4f} "
+        f"final_loss={losses[-1]:.4f} "
+        f"loss_ratio={losses[-1] / losses[0]:.4f} "
+        f"final_token_accuracy={accuracy:.2%}"
+    )
 
     assert losses[-1] < losses[0] * 0.2
+    assert accuracy == 1.0
     assert torch.equal(predictions, next_token_targets)

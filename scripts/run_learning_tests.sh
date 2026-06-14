@@ -11,4 +11,4 @@ else
 fi
 
 echo "Using Python: $PYTHON"
-"$PYTHON" -m pytest tests/learning/test_model_learning.py -v
+"$PYTHON" -m pytest tests/learning/test_model_learning.py -v -s
