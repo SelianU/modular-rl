@@ -448,6 +448,12 @@ Run tests:
 .venv/bin/python -m pytest -v
 ```
 
+Run the learning checks only:
+
+```bash
+./scripts/run_learning_tests.sh
+```
+
 Generated artifacts such as `.venv/`, `.pytest_cache/`, `checkpoints/`, training
 plots, logs, and coverage files are ignored by `.gitignore`.
 
