@@ -17,6 +17,7 @@ behavior.
 | Change one step in a training loop | Use hooks |
 | Replace the full supervised batch update | Use `training_step_function` |
 | Reuse a custom component by name | Register it with `Registry` |
+| Add a new RL algorithm | Register a config and agent builder |
 | Study or test an algorithm update directly | Use `lattice.algorithms.updates` |
 
 ## Custom PyTorch Models
@@ -194,6 +195,32 @@ agent = make_dqn_agent(
 
 Registry is best for repeated components. For one-off models, passing a
 prebuilt PyTorch module is usually simpler.
+
+## New RL Algorithms
+
+Registering an agent builder lets `build_agent` construct algorithms that are
+not built into `lattice`.
+
+```python
+from lattice.training import Registry
+
+Registry.register_config("my_algo", MyConfig)
+Registry.register_agent_builder("my_algo", MyAgentBuilder)
+```
+
+Then:
+
+```python
+from lattice.algorithms import build_agent
+
+agent = build_agent({
+    "algorithm": "my_algo",
+    "state_dim": 4,
+    "action_dim": 2,
+})
+```
+
+See [`new-rl-algorithm.md`](new-rl-algorithm.md) for the full checklist.
 
 ## Direct Update Functions
 

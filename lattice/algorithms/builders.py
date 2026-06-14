@@ -9,6 +9,14 @@ from .agent_builders import (
 from .agent_context import AgentBuildContext, has_prebuilt_model
 
 
+DEFAULT_AGENT_BUILDER_CLASSES = {
+    "dqn": DQNAgentBuilder,
+    "sac": SACAgentBuilder,
+    "ppo": PPOAgentBuilder,
+    "td3": TD3AgentBuilder,
+}
+
+
 class AgentBuilder:
     """Dispatch plain agent specs to algorithm-specific builders."""
 
@@ -18,12 +26,13 @@ class AgentBuilder:
 
             registry = Registry
         self.registry = registry
-        self.agent_builders = {
-            "dqn": DQNAgentBuilder(registry),
-            "sac": SACAgentBuilder(registry),
-            "ppo": PPOAgentBuilder(registry),
-            "td3": TD3AgentBuilder(registry),
-        }
+        self.agent_builder_classes = dict(DEFAULT_AGENT_BUILDER_CLASSES)
+        self.agent_builder_classes.update(
+            {
+                name: self.registry.get_agent_builder_class(name)
+                for name in self.registry.list_agent_builders()
+            }
+        )
 
     def build_agent(
         self,
@@ -36,19 +45,25 @@ class AgentBuilder:
             raise KeyError(
                 f"Algorithm '{algorithm}' not found. Available: {self.registry.list_configs()}"
             )
-        if algorithm not in self.agent_builders:
+        if algorithm not in self.agent_builder_classes:
             raise KeyError(f"Algorithm '{algorithm}' has no registered agent builder.")
 
         if context is None:
             config = self._build_config(algorithm, spec.get("config", {}))
             context = self._build_context(algorithm, spec, config)
 
-        return self.agent_builders[algorithm].build(context, spec)
+        return self._build_algorithm_builder(algorithm).build(context, spec)
 
     def _build_config(self, algorithm: str, config_spec: Dict[str, Any]):
         config_spec = dict(config_spec)
-        config_spec.setdefault("env_name", self._default_env_name(algorithm))
+        default_env_name = self._default_env_name(algorithm)
+        if default_env_name is not None:
+            config_spec.setdefault("env_name", default_env_name)
         return self.registry.build_config(algorithm, **config_spec)
+
+    def _build_algorithm_builder(self, algorithm: str):
+        builder_cls = self.agent_builder_classes[algorithm]
+        return builder_cls(registry=self.registry)
 
     @staticmethod
     def _build_context(algorithm: str, spec: Dict[str, Any], config) -> AgentBuildContext:
@@ -90,7 +105,7 @@ class AgentBuilder:
             "ppo": "CartPole-v1",
             "sac": "Pendulum-v1",
             "td3": "Pendulum-v1",
-        }[algorithm]
+        }.get(algorithm)
 
 
 def build_agent(

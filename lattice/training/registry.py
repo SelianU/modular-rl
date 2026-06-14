@@ -66,6 +66,8 @@ class Registry:
         "td3": TD3Agent,
     }
 
+    _agent_builders: Dict[str, type] = {}
+
     _configs: Dict[str, type] = {
         "dqn": DQNConfig,
         "sac": SACConfig,
@@ -114,6 +116,10 @@ class Registry:
         cls._agents[name] = agent_cls
 
     @classmethod
+    def register_agent_builder(cls, name: str, builder_cls: type) -> None:
+        cls._agent_builders[name] = builder_cls
+
+    @classmethod
     def register_config(cls, name: str, config_cls: type) -> None:
         cls._configs[name] = config_cls
 
@@ -154,6 +160,22 @@ class Registry:
         if name not in cls._agents:
             raise KeyError(f"Agent '{name}' not found. Available: {list(cls._agents)}")
         return cls._agents[name](**kwargs)
+
+    @classmethod
+    def build_agent_builder(cls, name: str, **kwargs):
+        if name not in cls._agent_builders:
+            raise KeyError(
+                f"Agent builder '{name}' not found. Available: {list(cls._agent_builders)}"
+            )
+        return cls._agent_builders[name](**kwargs)
+
+    @classmethod
+    def get_agent_builder_class(cls, name: str):
+        if name not in cls._agent_builders:
+            raise KeyError(
+                f"Agent builder '{name}' not found. Available: {list(cls._agent_builders)}"
+            )
+        return cls._agent_builders[name]
 
     @classmethod
     def build_config(cls, name: str, **kwargs):
@@ -240,6 +262,10 @@ class Registry:
     @classmethod
     def list_agents(cls) -> list:
         return list(cls._agents)
+
+    @classmethod
+    def list_agent_builders(cls) -> list:
+        return list(cls._agent_builders)
 
     @classmethod
     def list_configs(cls) -> list:

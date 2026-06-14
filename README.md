@@ -73,6 +73,8 @@ Level 5: Internals
 Start with Level 1. Move down only when you need more control.
 Advanced extension examples live in
 [`docs/advanced-customization.md`](docs/advanced-customization.md).
+New algorithm guidance lives in
+[`docs/new-rl-algorithm.md`](docs/new-rl-algorithm.md).
 
 ## Neural Networks
 
@@ -440,6 +442,8 @@ Naming and file creation rules live in
 [`docs/naming-conventions.md`](docs/naming-conventions.md).
 Advanced customization examples live in
 [`docs/advanced-customization.md`](docs/advanced-customization.md).
+New RL algorithm guidance lives in
+[`docs/new-rl-algorithm.md`](docs/new-rl-algorithm.md).
 
 ## Requirements
 
