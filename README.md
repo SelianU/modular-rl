@@ -38,7 +38,11 @@ docs/
 ├── naming-conventions.md   # File, function, class, and variable naming rules
 └── superpowers/            # Design and implementation notes
 
-tests/                      # Pytest coverage for builders and simple networks
+experiments/
+├── learning/               # Small synthetic learning experiments
+└── mnist/                  # MNIST classification experiments
+
+scripts/                    # Shell wrappers for runnable experiments
 ```
 
 ---
@@ -422,36 +426,23 @@ environment = LearnedRewardWrapper(GymEnvWrapper("CartPole-v1"), reward_model)
 git clone https://github.com/yourname/modular-rl
 cd modular-rl
 pip install -e .
-pip install -e ".[dev]"
 
 # From PyPI (when published)
 pip install modular-rl
 ```
 
-**Requirements:** `torch>=2.0.0`, `gymnasium[classic-control]>=0.28.1`, `numpy>=1.22.0`, `matplotlib>=3.5.0`
+**Requirements:** `torch>=2.0.0`, `torchvision>=0.15.0`, `gymnasium[classic-control]>=0.28.1`, `numpy>=1.22.0`, `matplotlib>=3.5.0`
 
 ---
 
 ## Development
 
-Create a local virtual environment and install development dependencies:
+Create a local virtual environment and install the project in editable mode:
 
 ```bash
 python -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -e ".[dev]"
-```
-
-Run tests:
-
-```bash
-.venv/bin/python -m pytest -v
-```
-
-Run the learning checks only:
-
-```bash
-./scripts/run_learning_tests.sh
+.venv/bin/python -m pip install -e .
 ```
 
 Run parameterized learning experiments with detailed logs:
@@ -465,8 +456,8 @@ Run parameterized learning experiments with detailed logs:
 ./scripts/run_learning_experiments.sh --model mini_gpt --quick
 ```
 
-The experiment runner is separate from pytest. It is meant for watching how
-different model settings learn on small but non-trivial tasks:
+The synthetic experiment runner is meant for watching how different model
+settings learn on small but non-trivial tasks:
 
 - MLP: two-moons-like nonlinear classification.
 - CNN + MLP: image bar-orientation classification.
@@ -527,8 +518,8 @@ epoch=01/01 train_loss=0.9123 train_accuracy=72.56% test_loss=0.4211 test_accura
 final_test_accuracy=88.67%
 ```
 
-Generated artifacts such as `.venv/`, `.pytest_cache/`, `checkpoints/`, training
-plots, logs, and coverage files are ignored by `.gitignore`.
+Generated artifacts such as `.venv/`, `data/`, `checkpoints/`, training plots,
+logs, and model files are ignored by `.gitignore`.
 
 ---
 

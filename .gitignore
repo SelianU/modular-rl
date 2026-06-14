@@ -29,13 +29,6 @@ data/
 *.mp4
 results/
 
-# Testing
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-coverage.xml
-
 # Type checking / linting
 .mypy_cache/
 .ruff_cache/
