@@ -485,6 +485,48 @@ step=0025/0120 loss=0.4321
 result initial_loss=0.6880 final_loss=0.0053 best_loss=0.0053 loss_ratio=0.0077 final_accuracy=100.00% elapsed_seconds=0.10
 ```
 
+Run MNIST classification experiments:
+
+```bash
+./scripts/run_mnist_experiments.sh --model mlp --quick
+./scripts/run_mnist_experiments.sh --model cnn --quick
+./scripts/run_mnist_experiments.sh --model rnn --quick
+./scripts/run_mnist_experiments.sh --model transformer --quick
+./scripts/run_mnist_experiments.sh --model all --quick
+```
+
+You can also change common training parameters from the command line:
+
+```bash
+./scripts/run_mnist_experiments.sh --model cnn --quick --epochs 3 --learning-rate 0.001
+./scripts/run_mnist_experiments.sh --model all --quick --train-limit 2048 --test-limit 512
+./scripts/run_mnist_experiments.sh --model mlp --quick --device cpu --no-download
+```
+
+The MNIST experiments live under `experiments/mnist/` and are split by role:
+
+- `data.py`: downloads/loads MNIST with torchvision.
+- `models.py`: adapts each modular_rl model family to MNIST input shapes.
+- `train.py`: trains one experiment and prints epoch metrics.
+- `run_mnist_experiments.py`: CLI entry point and parameter grids.
+
+Model input handling:
+
+- MLP flattens each image from `(1, 28, 28)` to `784`.
+- CNN keeps the image as `(1, 28, 28)`.
+- RNN reads the image as 28 row tokens with 28 features each.
+- Transformer reads the same 28 row tokens with positional encoding.
+
+The first MNIST run downloads data into `data/`. Use `--no-download` when you
+want the command to fail instead of downloading missing files. Example log:
+
+```text
+=== MNIST | CNN ===
+params={'conv_channels': [16, 32], 'learning_rate': 0.001, 'epochs': 1, ...}
+epoch=01/01 train_loss=0.9123 train_accuracy=72.56% test_loss=0.4211 test_accuracy=88.67% elapsed_seconds=2.34
+final_test_accuracy=88.67%
+```
+
 Generated artifacts such as `.venv/`, `.pytest_cache/`, `checkpoints/`, training
 plots, logs, and coverage files are ignored by `.gitignore`.
 

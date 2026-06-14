@@ -23,6 +23,7 @@ checkpoints/
 *.pth
 
 # Training outputs
+data/
 *.png
 *.gif
 *.mp4
