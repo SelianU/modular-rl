@@ -30,6 +30,7 @@ lattice/networks/
 
 lattice/training/
 ├── optimizers.py          # make_loss, make_optimizer
+├── hooks.py               # HookManager, RLHookContext, SupervisedHookContext
 ├── interaction.py         # run_interaction_step
 ├── training_steps.py      # run_training_step, run_evaluation_step
 ├── supervised_training.py # SupervisedTrainingConfig, train_supervised_model
@@ -59,6 +60,7 @@ lattice/algorithms/
   - `*Trainer`: training loops, such as `RLTrainer` or `RewardModelTrainer`.
   - `*Builder`: object assembly helpers, such as `AgentBuilder` or `ExperimentBuilder`.
   - `*BuildContext`: explicit build-time shape and space metadata, such as `AgentBuildContext`.
+  - `*HookContext`: runtime hook metadata, such as `RLHookContext`.
   - `*UpdateBatch`: immutable inputs for one algorithm update, such as `DQNUpdateBatch`.
   - `*UpdateMetrics`: outputs from one algorithm update, such as `DQNUpdateMetrics`.
 

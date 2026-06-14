@@ -1,7 +1,9 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import numpy as np
+
+from .hooks import HookManager, HookSpec, RLHookContext, RLTransition
 
 
 TransitionFunction = Callable[[Any], Tuple[np.ndarray, float, bool]]
@@ -24,6 +26,8 @@ def run_interaction_step(
     transition_function: TransitionFunction,
     evaluation: bool = False,
     update: bool = True,
+    hooks: HookSpec = None,
+    context: Optional[RLHookContext] = None,
 ) -> InteractionStep:
     """
     Run one state -> action -> external transition -> observe/update step.
@@ -31,14 +35,64 @@ def run_interaction_step(
     The transition_function owns the outside world. It receives the action and
     returns (next_state, reward, done).
     """
-    action = agent.select_action(state, evaluation=evaluation)
+    hook_manager = HookManager(hooks)
+    hook_context = context or RLHookContext(
+        agent=agent,
+        environment=None,
+        config=getattr(agent, "config", None),
+        evaluation=evaluation,
+    )
+
+    processed_state = hook_manager.transform("process_state", state, context=hook_context)
+    custom_action = hook_manager.first(
+        "select_action",
+        agent=agent,
+        state=processed_state,
+        context=hook_context,
+    )
+    action = custom_action if custom_action is not None else agent.select_action(
+        processed_state,
+        evaluation=evaluation,
+    )
+    action = hook_manager.transform("process_action", action, context=hook_context)
     next_state, reward, done = transition_function(action)
+    next_state = hook_manager.transform(
+        "process_next_state",
+        next_state,
+        state=processed_state,
+        action=action,
+        context=hook_context,
+    )
+    transition = RLTransition(
+        state=processed_state,
+        action=action,
+        reward=reward,
+        next_state=next_state,
+        done=done,
+    )
+    reward = hook_manager.transform(
+        "process_reward",
+        reward,
+        transition=transition,
+        context=hook_context,
+    )
+    transition.reward = reward
 
     metrics = {}
     if not evaluation:
-        agent.observe(state, action, reward, next_state, done)
+        hook_manager.run("on_transition", transition=transition, context=hook_context)
+        agent.observe(
+            transition.state,
+            transition.action,
+            transition.reward,
+            transition.next_state,
+            transition.done,
+        )
         if update:
+            hook_manager.run("before_update", agent=agent, context=hook_context)
             metrics = agent.update()
+            hook_context.metrics = metrics
+            hook_manager.run("after_update", metrics=metrics, context=hook_context)
 
     return InteractionStep(
         action=action,

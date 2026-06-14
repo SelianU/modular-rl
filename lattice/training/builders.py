@@ -41,7 +41,14 @@ class ExperimentBuilder:
         logger = self._build_logger(spec.get("logger"), algorithm_config, spec.get("plot_path"))
 
         agent = build_agent(spec, context=context, registry=self.registry)
-        return RLTrainer(agent, environment, algorithm_config, logger, save_path=spec.get("save_path"))
+        return RLTrainer(
+            agent,
+            environment,
+            algorithm_config,
+            logger,
+            save_path=spec.get("save_path"),
+            hooks=spec.get("hooks"),
+        )
 
     def _build_env(self, env_spec: Dict[str, Any], algorithm: str):
         env_spec = dict(env_spec)

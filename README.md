@@ -29,6 +29,7 @@ lattice/
 └── training/               # RLTrainer, supervised training, builders, utilities
     ├── builders.py
     ├── factory.py
+    ├── hooks.py
     ├── rl_trainer.py
     ├── interaction.py
     ├── supervised_training.py
@@ -273,6 +274,39 @@ history = train_supervised_model(
 )
 ```
 
+Use hooks when you want to customize one part of the supervised loop without
+rewriting the full trainer:
+
+```python
+def process_batch(value, context):
+    inputs, targets = value
+    return inputs.float(), targets
+
+def after_batch(batch, metrics, context):
+    if context.batch_index == 1:
+        print("first batch loss:", metrics.loss)
+
+history = train_supervised_model(
+    model=model,
+    train_loader=train_loader,
+    config=config,
+    hooks={
+        "process_batch": process_batch,
+        "after_batch": after_batch,
+    },
+)
+```
+
+Common supervised hook names:
+
+```text
+before_epoch
+before_batch
+process_batch
+after_batch
+after_epoch
+```
+
 `train_supervised_model` uses these utilities directly. RL agents use separate
 algorithm update functions when the update rule is important enough to read,
 reuse, or test in isolation. For example, `DQNAgent` samples replay data and
@@ -336,6 +370,55 @@ result = run_interaction_step(
 
 state = get_initial_state() if result.done else result.next_state
 print(result.action, result.reward, result.metrics)
+```
+
+Use hooks when you want to customize a specific RL segment:
+
+```python
+def process_reward(value, transition, context):
+    return value + 0.1 * custom_bonus(transition.next_state)
+
+def after_update(metrics, context):
+    if metrics:
+        print("update metrics:", metrics)
+
+result = run_interaction_step(
+    agent=agent,
+    state=state,
+    transition_function=external_system_step,
+    hooks={
+        "process_reward": process_reward,
+        "after_update": after_update,
+    },
+)
+```
+
+`RLTrainer` accepts the same hook names:
+
+```python
+trainer = build_trainer({
+    "algorithm": "dqn",
+    "env": {"type": "gym", "name": "CartPole-v1"},
+    "hooks": {
+        "process_reward": process_reward,
+        "after_update": after_update,
+    },
+})
+```
+
+Common RL hook names:
+
+```text
+on_episode_start
+process_state
+process_next_state
+select_action
+process_action
+process_reward
+on_transition
+before_update
+after_update
+on_episode_end
 ```
 
 ### DQN Backbone Choices

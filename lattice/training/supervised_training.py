@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 
 from .optimizers import LossLike, OptimizerLike, make_loss, make_optimizer
+from .hooks import HookManager, HookSpec, SupervisedHookContext
 from .training_steps import BatchMetrics, run_evaluation_step, run_training_step
 
 
@@ -82,6 +83,7 @@ def train_supervised_model(
     log_interval: int = 1,
     callbacks: Optional[List[TrainingCallback]] = None,
     training_step_function: Optional[TrainingStepFunction] = None,
+    hooks: HookSpec = None,
     **optimizer_kwargs,
 ) -> SupervisedTrainingHistory:
     """
@@ -104,6 +106,7 @@ def train_supervised_model(
         optimizer_kwargs = merged_optimizer_kwargs
 
     callbacks = [] if callbacks is None else callbacks
+    hook_manager = HookManager(hooks)
     model = model.to(device)
     loss_fn = make_loss(loss)
     optimizer_instance = make_optimizer(
@@ -122,12 +125,20 @@ def train_supervised_model(
     history = SupervisedTrainingHistory()
 
     for epoch in range(1, epochs + 1):
+        hook_context = SupervisedHookContext(
+            model=model,
+            config=config,
+            epoch=epoch,
+        )
+        hook_manager.run("before_epoch", context=hook_context)
         train_metrics = _run_training_epoch(
             model=model,
             data_loader=train_loader,
             context=training_context,
             epoch=epoch,
             training_step_function=training_step_function,
+            hooks=hook_manager,
+            hook_context=hook_context,
         )
         validation_metrics = None
         if validation_loader is not None:
@@ -147,9 +158,17 @@ def train_supervised_model(
             validation_accuracy=validation_metrics.accuracy if validation_metrics else None,
         )
         history.epochs.append(epoch_metrics)
+        hook_context.metrics = {
+            "train_loss": epoch_metrics.train_loss,
+            "train_accuracy": epoch_metrics.train_accuracy,
+            "validation_loss": epoch_metrics.validation_loss,
+            "validation_accuracy": epoch_metrics.validation_accuracy,
+        }
 
         if log_interval > 0 and (epoch == 1 or epoch == epochs or epoch % log_interval == 0):
             _print_epoch_metrics(epoch_metrics, total_epochs=epochs)
+
+        hook_manager.run("after_epoch", metrics=epoch_metrics, history=history, context=hook_context)
 
         should_stop = _run_callbacks(
             callbacks=callbacks,
@@ -193,11 +212,16 @@ def _run_training_epoch(
     context: SupervisedTrainingContext,
     epoch: int,
     training_step_function: Optional[TrainingStepFunction],
+    hooks: HookManager,
+    hook_context: SupervisedHookContext,
 ) -> BatchMetrics:
     batch_metrics = []
     for batch_index, batch in enumerate(data_loader, start=1):
         context.epoch = epoch
         context.batch_index = batch_index
+        hook_context.batch_index = batch_index
+        hooks.run("before_batch", batch=batch, context=hook_context)
+        batch = hooks.transform("process_batch", batch, context=hook_context)
         if training_step_function is not None:
             metrics = training_step_function(model, batch, context)
         else:
@@ -212,6 +236,12 @@ def _run_training_epoch(
                 output_mode=context.output_mode,
                 gradient_clip_norm=context.gradient_clip_norm,
             )
+        hook_context.metrics = {
+            "loss": metrics.loss,
+            "accuracy": metrics.accuracy,
+            "num_samples": metrics.num_samples,
+        }
+        hooks.run("after_batch", batch=batch, metrics=metrics, context=hook_context)
         batch_metrics.append(metrics)
     return _average_batch_metrics(batch_metrics)
 

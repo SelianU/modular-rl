@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 from .env_wrapper import BaseEnv
+from .hooks import HookManager, HookSpec, RLHookContext, RLTransition
 from .logger import BaseLogger, ConsoleLogger
 
 
@@ -34,6 +35,7 @@ class RLTrainer:
         config,
         logger: Optional[BaseLogger] = None,
         save_path: Optional[str] = None,
+        hooks: HookSpec = None,
     ):
         self.agent = agent
         self.env = env
@@ -42,6 +44,10 @@ class RLTrainer:
             log_interval=getattr(config, "log_interval", 10)
         )
         self.save_path = save_path
+        self.hooks = HookManager(hooks)
+
+    def add_hook(self, name: str, hook) -> None:
+        self.hooks.add(name, hook)
 
     # ------------------------------------------------------------------ #
     # Training                                                             #
@@ -60,16 +66,76 @@ class RLTrainer:
 
         state = self.env.reset()
         self._maybe_reset_hidden()
+        hook_context = RLHookContext(
+            agent=self.agent,
+            environment=self.env,
+            config=self.config,
+        )
+        self.hooks.run("on_episode_start", state=state, context=hook_context)
 
         for global_step in range(1, self.config.total_timesteps + 1):
-            action = self.agent.select_action(state, evaluation=False)
-            next_state, reward, done, _ = self.env.step(action)
+            hook_context.global_step = global_step
+            hook_context.episode = curr_episode + 1
+
+            processed_state = self.hooks.transform(
+                "process_state",
+                state,
+                context=hook_context,
+            )
+            custom_action = self.hooks.first(
+                "select_action",
+                agent=self.agent,
+                state=processed_state,
+                context=hook_context,
+            )
+            action = (
+                custom_action
+                if custom_action is not None
+                else self.agent.select_action(processed_state, evaluation=False)
+            )
+            action = self.hooks.transform("process_action", action, context=hook_context)
+
+            next_state, reward, done, info = self.env.step(action)
+            next_state = self.hooks.transform(
+                "process_next_state",
+                next_state,
+                state=processed_state,
+                action=action,
+                context=hook_context,
+            )
+            transition = RLTransition(
+                state=processed_state,
+                action=action,
+                reward=reward,
+                next_state=next_state,
+                done=done,
+                info=info,
+            )
+            reward = self.hooks.transform(
+                "process_reward",
+                reward,
+                transition=transition,
+                context=hook_context,
+            )
+            transition.reward = reward
             episode_reward += reward
 
-            self.agent.observe(state, action, reward, next_state, done)
-            state = next_state
+            self.hooks.run("on_transition", transition=transition, context=hook_context)
+            self.agent.observe(
+                transition.state,
+                transition.action,
+                transition.reward,
+                transition.next_state,
+                transition.done,
+            )
+            state = transition.next_state
 
-            for k, v in self.agent.update().items():
+            self.hooks.run("before_update", agent=self.agent, context=hook_context)
+            update_metrics = self.agent.update()
+            hook_context.metrics = update_metrics
+            self.hooks.run("after_update", metrics=update_metrics, context=hook_context)
+
+            for k, v in update_metrics.items():
                 step_buf.setdefault(k, []).append(v)
 
             if done:
@@ -82,6 +148,9 @@ class RLTrainer:
                 for k, v in log_metrics.items():
                     history.setdefault(k, []).append(v)
 
+                hook_context.metrics = log_metrics
+                self.hooks.run("on_episode_end", metrics=log_metrics, context=hook_context)
+
                 eval_interval = getattr(self.config, "eval_interval", 0)
                 if eval_interval > 0 and curr_episode % eval_interval == 0:
                     eval_result = self.evaluate(n_episodes=5)
@@ -92,6 +161,8 @@ class RLTrainer:
 
                 state = self.env.reset()
                 self._maybe_reset_hidden()
+                hook_context.episode = curr_episode + 1
+                self.hooks.run("on_episode_start", state=state, context=hook_context)
                 episode_reward = 0.0
                 step_buf = {}
 
